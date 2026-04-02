@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Estif Bingo - 24/7 Play</title>
-    <link rel="icon" type="image/png" href="/assets/images/logo.png">
+    <title>Estif Bingo - Player</title>
     <style>
         * {
             margin: 0;
@@ -17,6 +16,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
             padding: 20px;
+            color: #f5efdc;
         }
         
         .container {
@@ -34,31 +34,30 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         
         .logo {
-            height: 50px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #f5c542;
         }
         
         .balance-card {
             text-align: center;
+            background: #2a5a3e;
+            padding: 8px 16px;
+            border-radius: 20px;
         }
         
         .balance-label {
             font-size: 12px;
-            color: #aaa;
+            opacity: 0.8;
         }
         
         .balance-amount {
             font-size: 24px;
             font-weight: bold;
             color: #f5c542;
-        }
-        
-        .balance-currency {
-            font-size: 12px;
-            margin-left: 4px;
         }
         
         /* Game Display */
@@ -95,28 +94,26 @@
             animation: pulse 0.5s infinite;
         }
         
-        .status {
+        .status-badge {
+            display: inline-block;
             padding: 8px 16px;
             border-radius: 30px;
-            display: inline-block;
             font-size: 14px;
             font-weight: bold;
-            margin-bottom: 15px;
         }
         
-        .status.waiting { background: #ff9800; color: #1a472a; }
-        .status.selection { background: #2196f3; color: white; }
-        .status.active { background: #4caf50; color: white; }
-        .status.ended { background: #9c27b0; color: white; }
+        .status-badge.selection { background: #2196f3; }
+        .status-badge.active { background: #4caf50; }
+        .status-badge.ended { background: #9c27b0; }
         
         .called-numbers {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             justify-content: center;
+            margin-top: 15px;
             max-height: 150px;
             overflow-y: auto;
-            margin-top: 15px;
         }
         
         .called-ball {
@@ -148,12 +145,6 @@
         
         .section-title h3 {
             color: #f5c542;
-            margin-bottom: 5px;
-        }
-        
-        .bet-info {
-            font-size: 12px;
-            color: #aaa;
         }
         
         .selection-stats {
@@ -237,7 +228,6 @@
             width: 25px;
             height: 25px;
             cursor: pointer;
-            font-size: 14px;
         }
         
         /* Winner Announcement */
@@ -260,8 +250,7 @@
             padding: 40px;
             border-radius: 30px;
             text-align: center;
-            max-width: 90%;
-            animation: slideUp 0.3s;
+            color: #1a472a;
         }
         
         .winner-title {
@@ -270,21 +259,10 @@
             margin-bottom: 15px;
         }
         
-        .winner-names {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        
         .winner-reward {
             font-size: 28px;
             font-weight: bold;
             margin: 15px 0;
-        }
-        
-        .next-round-info {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #666;
         }
         
         /* Toast */
@@ -305,29 +283,21 @@
         .toast.error { background: #f44336; }
         .toast.warning { background: #ff9800; }
         
-        /* Footer */
         .footer {
             text-align: center;
             padding: 20px;
             font-size: 12px;
-            color: #aaa;
+            opacity: 0.7;
         }
         
-        /* Animations */
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
         }
         
         @keyframes popIn {
-            from {
-                transform: scale(0);
-                opacity: 0;
-            }
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
         
         @keyframes fadeIn {
@@ -336,93 +306,57 @@
         }
         
         @keyframes slideUp {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
         
-        /* Responsive */
         @media (max-width: 600px) {
-            .cartela-grid {
-                grid-template-columns: repeat(6, 1fr);
-                gap: 5px;
-            }
-            
-            .cartela-item {
-                font-size: 12px;
-                padding: 8px 3px;
-            }
-            
-            .timer {
-                font-size: 36px;
-            }
-            
-            .called-ball {
-                width: 35px;
-                height: 35px;
-                font-size: 14px;
-            }
-            
-            .winner-title {
-                font-size: 24px;
-            }
-        }
-        
-        @media (max-width: 400px) {
-            .cartela-grid {
-                grid-template-columns: repeat(5, 1fr);
-            }
+            .cartela-grid { grid-template-columns: repeat(6, 1fr); gap: 5px; }
+            .cartela-item { font-size: 12px; padding: 8px 3px; }
+            .timer { font-size: 36px; }
+            .called-ball { width: 35px; height: 35px; font-size: 14px; }
+            .winner-title { font-size: 24px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
-            <img src="/assets/images/logo.png" alt="Estif Bingo" class="logo">
+            <div class="logo">🎲 Estif Bingo</div>
             <div class="balance-card">
                 <div class="balance-label">💰 BALANCE</div>
                 <div class="balance-amount" id="balanceAmount">0</div>
-                <span class="balance-currency">ETB</span>
+                <span>ETB</span>
             </div>
         </div>
         
-        <!-- Game Display -->
         <div class="game-display">
             <div class="round-badge" id="roundDisplay">Round --</div>
             <div class="timer" id="timerDisplay">--:--</div>
-            <div class="status" id="statusDisplay">Loading...</div>
+            <div class="status-badge selection" id="statusDisplay">Select Cartelas</div>
             <div class="called-numbers" id="calledNumbers"></div>
         </div>
         
-        <!-- Cartela Selection -->
         <div class="cartela-section" id="cartelaSection">
             <div class="section-title">
                 <h3>🎲 SELECT YOUR CARTELAS</h3>
-                <p class="bet-info">Max 2 cartelas | 10 ETB each</p>
+                <p>Max 2 cartelas | 10 ETB each</p>
             </div>
             <div class="selection-stats">
                 <span>Selected: <strong id="selectedCount">0/2</strong></span>
-                <span>Your Balance: <strong id="balanceDisplay">0</strong> ETB</span>
+                <span>Balance: <strong id="balanceDisplay">0</strong> ETB</span>
             </div>
             <div class="cartela-grid" id="cartelaGrid"></div>
         </div>
         
-        <!-- Selected Cartelas (After game starts) -->
         <div class="cartela-section" id="selectedSection" style="display: none;">
             <div class="section-title">
                 <h3>🎯 YOUR SELECTED CARTELAS</h3>
-                <p class="bet-info">Waiting for your numbers to be called!</p>
+                <p>Waiting for numbers to be called!</p>
             </div>
             <div class="selected-cartelas" id="selectedCartelasList"></div>
         </div>
         
-        <!-- Footer -->
         <div class="footer">
             <p>Estif Bingo © 2024 | 24/7 Continuous Gameplay</p>
         </div>
@@ -430,97 +364,46 @@
     
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Configuration
-        const SOCKET_URL = window.location.origin;
-        const token = localStorage.getItem('token');
-        let userId = null;
-        let socket = null;
-        
         // Game state
-        let currentGameState = {
-            status: 'waiting',
-            round: 0,
-            timeLeft: 0,
-            drawnNumbers: []
-        };
-        
-        let playerState = {
-            balance: 0,
-            selectedCartelas: [],
-            username: ''
-        };
-        
+        let socket = null;
+        let gameState = { status: 'selection', round: 0, timer: 50, drawnNumbers: [] };
+        let playerState = { balance: 0, selectedCartelas: [], username: '' };
         let cartelaElements = [];
-        
-        // Audio
-        const audioMap = {};
-        for (let i = 1; i <= 75; i++) {
-            const audio = new Audio(`/assets/sounds/${i}.mp3`);
-            audio.preload = 'auto';
-            audioMap[i] = audio;
-        }
-        const winSound = new Audio('/assets/sounds/win.mp3');
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
             initializeSocket();
             createCartelaGrid();
         });
         
-        // Check authentication
-        function checkAuth() {
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
-            
-            // Get user info from token (decode or from storage)
-            const tokenData = JSON.parse(atob(token.split('.')[1]));
-            userId = tokenData.userId;
-        }
-        
-        // Initialize socket
         function initializeSocket() {
-            socket = io(SOCKET_URL);
+            socket = io();
             
             socket.on('connect', () => {
                 console.log('Connected to server');
-                socket.emit('register', { userId, token });
+                socket.emit('register', {});
             });
             
             socket.on('registered', (data) => {
-                console.log('Registered:', data);
                 playerState.balance = data.balance;
                 playerState.username = data.username;
                 updateBalanceDisplay();
                 
-                // Update game state
-                currentGameState.round = data.currentRound;
-                currentGameState.status = data.gameStatus;
-                updateTimerDisplay(data.timeLeft);
-                updateStatusDisplay();
+                if (data.gameState) {
+                    gameState = data.gameState;
+                    updateGameDisplay();
+                }
             });
             
-            socket.on('currentGameState', (state) => {
-                currentGameState.status = state.status;
-                currentGameState.round = state.round;
-                currentGameState.drawnNumbers = state.drawnNumbers || [];
-                updateTimerDisplay(state.timeLeft);
-                updateStatusDisplay();
-                updateCalledNumbers();
+            socket.on('gameState', (state) => {
+                gameState = state;
+                updateGameDisplay();
             });
             
-            socket.on('gameStateUpdate', (state) => {
-                currentGameState.status = state.status;
-                currentGameState.round = state.round;
-                currentGameState.drawnNumbers = state.drawnNumbers || [];
-                updateStatusDisplay();
-                updateCalledNumbers();
-            });
-            
-            socket.on('selectionTimeLeft', (data) => {
+            socket.on('timerUpdate', (data) => {
+                gameState.timer = data.seconds;
                 updateTimerDisplay(data.seconds);
+                
                 if (data.seconds <= 10) {
                     document.getElementById('timerDisplay').classList.add('urgent');
                 } else {
@@ -528,17 +411,24 @@
                 }
             });
             
+            socket.on('gameStarted', (data) => {
+                gameState.status = 'active';
+                updateGameDisplay();
+                showToast(`Game started! Round ${data.round}`, 'success');
+                showCartelaSelection(false);
+            });
+            
             socket.on('numberDrawn', (data) => {
-                playSound(data.number);
                 addCalledNumber(data.number);
-                currentGameState.drawnNumbers.push(data.number);
+                playSound(data.number);
             });
             
             socket.on('selectionConfirmed', (data) => {
-                playerState.balance = data.remainingBalance;
+                playerState.balance = data.balance;
+                playerState.selectedCartelas.push(data.cartela);
                 updateBalanceDisplay();
-                updateSelectedCount(data.selectedCount);
-                showToast(`Cartela ${data.cartela} selected!`, 'success');
+                updateSelectedCount(playerState.selectedCartelas.length);
+                showToast(data.message, 'success');
                 updateCartelaHighlight(data.cartela, true);
             });
             
@@ -550,20 +440,25 @@
                 refreshCartelaHighlights();
             });
             
-            socket.on('playerSelectionUpdate', (data) => {
-                showToast(`${data.username} selected ${data.selectedCount} cartela(s)`, 'info');
-            });
-            
             socket.on('roundEnded', (data) => {
                 showWinnerAnnouncement(data);
                 playWinSound();
                 playerState.selectedCartelas = [];
                 updateSelectedDisplay();
                 refreshCartelaHighlights();
+                gameState.status = 'ended';
+                updateGameDisplay();
             });
             
-            socket.on('nextRoundCountdown', (data) => {
-                showToast(`Next round starts in ${data.seconds} seconds!`, 'warning');
+            socket.on('nextRound', (data) => {
+                gameState.round = data.round;
+                gameState.timer = data.timer;
+                gameState.status = 'selection';
+                gameState.drawnNumbers = [];
+                updateGameDisplay();
+                showCartelaSelection(true);
+                showToast(data.message, 'info');
+                document.getElementById('calledNumbers').innerHTML = '';
             });
             
             socket.on('error', (message) => {
@@ -571,7 +466,6 @@
             });
         }
         
-        // Create cartela grid (1-400)
         function createCartelaGrid() {
             const grid = document.getElementById('cartelaGrid');
             grid.innerHTML = '';
@@ -588,10 +482,9 @@
             }
         }
         
-        // Select cartela
         function selectCartela(number) {
-            if (currentGameState.status !== 'selection') {
-                showToast(`Cannot select now. Game status: ${currentGameState.status}`, 'error');
+            if (gameState.status !== 'selection') {
+                showToast('Cannot select now. Game already started!', 'error');
                 return;
             }
             
@@ -606,19 +499,14 @@
             }
         }
         
-        // Update cartela highlight
         function updateCartelaHighlight(number, isSelected) {
             const cell = cartelaElements.find(c => parseInt(c.dataset.number) === number);
             if (cell) {
-                if (isSelected) {
-                    cell.classList.add('selected');
-                } else {
-                    cell.classList.remove('selected');
-                }
+                if (isSelected) cell.classList.add('selected');
+                else cell.classList.remove('selected');
             }
         }
         
-        // Refresh all cartela highlights
         function refreshCartelaHighlights() {
             cartelaElements.forEach(cell => {
                 const num = parseInt(cell.dataset.number);
@@ -630,13 +518,12 @@
             });
         }
         
-        // Update selected display
         function updateSelectedDisplay() {
             const container = document.getElementById('selectedCartelasList');
             if (!container) return;
             
             if (playerState.selectedCartelas.length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:#aaa;">No cartelas selected</div>';
+                container.innerHTML = '<div style="text-align:center; opacity:0.7;">No cartelas selected</div>';
                 return;
             }
             
@@ -652,79 +539,59 @@
             });
         }
         
-        // Deselect cartela
         function deselectCartela(number) {
-            if (currentGameState.status !== 'selection') {
+            if (gameState.status !== 'selection') {
                 showToast('Cannot deselect now', 'error');
                 return;
             }
             socket.emit('deselectCartela', { cartelaNumber: number });
         }
         
-        // Update timer display
-        function updateTimerDisplay(seconds) {
-            const timerEl = document.getElementById('timerDisplay');
-            if (seconds === undefined || seconds === null) {
-                timerEl.textContent = '--:--';
-                return;
-            }
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-        
-        // Update status display
-        function updateStatusDisplay() {
+        function updateGameDisplay() {
+            const roundEl = document.getElementById('roundDisplay');
             const statusEl = document.getElementById('statusDisplay');
-            const statusMap = {
-                'waiting': '⏳ Waiting for next round',
-                'selection': '🎲 SELECT CARTELAS',
-                'active': '🎯 GAME IN PROGRESS',
-                'ended': '🏆 ROUND ENDED'
-            };
-            statusEl.textContent = statusMap[currentGameState.status] || currentGameState.status;
-            statusEl.className = `status ${currentGameState.status}`;
-            
-            // Show/hide sections
             const cartelaSection = document.getElementById('cartelaSection');
             const selectedSection = document.getElementById('selectedSection');
             
-            if (currentGameState.status === 'selection') {
+            if (roundEl) roundEl.textContent = `Round ${gameState.round}`;
+            if (statusEl) {
+                statusEl.textContent = gameState.status === 'selection' ? '🎲 SELECT CARTELAS' : 
+                                       gameState.status === 'active' ? '🎯 GAME IN PROGRESS' : '🏆 ROUND ENDED';
+                statusEl.className = `status-badge ${gameState.status}`;
+            }
+            
+            updateTimerDisplay(gameState.timer);
+            updateCalledNumbers(gameState.drawnNumbers);
+            
+            if (gameState.status === 'selection') {
                 cartelaSection.style.display = 'block';
                 selectedSection.style.display = 'none';
                 enableCartelaSelection(true);
-            } else if (currentGameState.status === 'active') {
+            } else if (gameState.status === 'active') {
                 cartelaSection.style.display = 'none';
                 selectedSection.style.display = 'block';
                 updateSelectedDisplay();
+                enableCartelaSelection(false);
             } else {
                 cartelaSection.style.display = 'block';
                 selectedSection.style.display = 'none';
                 enableCartelaSelection(false);
             }
-            
-            // Update round display
-            document.getElementById('roundDisplay').textContent = `Round ${currentGameState.round}`;
         }
         
-        // Enable/disable cartela selection
-        function enableCartelaSelection(enable) {
-            cartelaElements.forEach(cell => {
-                if (enable) {
-                    cell.classList.remove('disabled');
-                } else {
-                    cell.classList.add('disabled');
-                }
-            });
+        function updateTimerDisplay(seconds) {
+            const timerEl = document.getElementById('timerDisplay');
+            if (!timerEl) return;
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
         
-        // Update called numbers
-        function updateCalledNumbers() {
+        function updateCalledNumbers(numbers) {
             const container = document.getElementById('calledNumbers');
             if (!container) return;
-            
             container.innerHTML = '';
-            currentGameState.drawnNumbers.forEach(number => {
+            numbers.forEach(number => {
                 const ball = document.createElement('div');
                 ball.className = 'called-ball';
                 ball.textContent = number;
@@ -732,7 +599,6 @@
             });
         }
         
-        // Add single called number
         function addCalledNumber(number) {
             const container = document.getElementById('calledNumbers');
             const ball = document.createElement('div');
@@ -740,73 +606,71 @@
             ball.textContent = number;
             container.appendChild(ball);
             container.scrollTop = container.scrollHeight;
+            
+            while (container.children.length > 30) {
+                container.removeChild(container.firstChild);
+            }
         }
         
-        // Update balance display
         function updateBalanceDisplay() {
-            document.getElementById('balanceAmount').textContent = playerState.balance.toFixed(2);
-            document.getElementById('balanceDisplay').textContent = playerState.balance.toFixed(2);
+            const balanceEl = document.getElementById('balanceAmount');
+            const balanceDisplay = document.getElementById('balanceDisplay');
+            if (balanceEl) balanceEl.textContent = playerState.balance.toFixed(2);
+            if (balanceDisplay) balanceDisplay.textContent = playerState.balance.toFixed(2);
         }
         
-        // Update selected count
         function updateSelectedCount(count) {
-            document.getElementById('selectedCount').textContent = `${count}/2`;
+            const countEl = document.getElementById('selectedCount');
+            if (countEl) countEl.textContent = `${count}/2`;
         }
         
-        // Show winner announcement
+        function enableCartelaSelection(enable) {
+            cartelaElements.forEach(cell => {
+                if (enable) cell.classList.remove('disabled');
+                else cell.classList.add('disabled');
+            });
+        }
+        
+        function showCartelaSelection(show) {
+            const cartelaSection = document.getElementById('cartelaSection');
+            const selectedSection = document.getElementById('selectedSection');
+            if (cartelaSection) cartelaSection.style.display = show ? 'block' : 'none';
+            if (selectedSection) selectedSection.style.display = show ? 'none' : 'block';
+        }
+        
         function showWinnerAnnouncement(data) {
             const overlay = document.createElement('div');
             overlay.className = 'winner-overlay';
             overlay.innerHTML = `
                 <div class="winner-card">
                     <div class="winner-title">🎉 BINGO! 🎉</div>
-                    <div class="winner-names">🏆 ${data.winnerNames || 'No winners'}</div>
-                    <div class="winner-reward">💰 ${data.winnerReward.toFixed(2)} ETB each</div>
-                    <div class="next-round-info">⏳ Next round starts in ${data.nextRoundIn} seconds...</div>
+                    <div class="winner-reward">💰 ${data.winnerReward.toFixed(2)} ETB</div>
+                    <div class="winner-names">${data.message}</div>
+                    <div class="next-round-info">⏳ Next round starting soon...</div>
                 </div>
             `;
             document.body.appendChild(overlay);
-            
-            setTimeout(() => {
-                overlay.remove();
-            }, 5000);
+            setTimeout(() => overlay.remove(), 5000);
         }
         
-        // Play sound
         function playSound(number) {
-            const audio = audioMap[number];
-            if (audio) {
-                audio.currentTime = 0;
-                audio.play().catch(e => console.log('Audio error:', e));
-            }
+            const audio = new Audio(`/assets/sounds/${number}.mp3`);
+            audio.play().catch(e => console.log('Audio error:', e));
         }
         
-        // Play win sound
         function playWinSound() {
-            winSound.currentTime = 0;
-            winSound.play().catch(e => console.log('Win sound error:', e));
+            const audio = new Audio('/assets/sounds/win.mp3');
+            audio.play().catch(e => console.log('Win sound error:', e));
         }
         
-        // Show toast
-        function showToast(message, type = 'info') {
+        function showToast(message, type) {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.textContent = message;
             document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
+            setTimeout(() => toast.remove(), 3000);
         }
         
-        // Get player status periodically
-        setInterval(() => {
-            if (socket) {
-                socket.emit('getStatus');
-            }
-        }, 5000);
-        
-        // Expose for inline onclick
         window.deselectCartela = deselectCartela;
     </script>
 </body>
