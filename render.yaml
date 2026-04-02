@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: estif-bingo-247
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_HOST
+        fromDatabase:
+          name: estif-bingo-db
+          property: host
+      - key: DB_USER
+        fromDatabase:
+          name: estif-bingo-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: estif-bingo-db
+          property: password
+      - key: DB_NAME
+        value: estif_bingo_247
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: johnsonestiph13@gmail.com
+
+databases:
+  - name: estif-bingo-db
+    databaseName: estif_bingo_247
+    user: estif_bingo_user

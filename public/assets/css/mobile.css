@@ -1,0 +1,194 @@
+/* Mobile-Specific Styles */
+
+@media (max-width: 768px) {
+    /* General */
+    body {
+        font-size: 14px;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+    
+    /* Header */
+    .header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .logo {
+        height: 40px;
+    }
+    
+    .balance-amount {
+        font-size: 20px;
+    }
+    
+    /* Timer */
+    .timer {
+        font-size: 36px;
+    }
+    
+    /* Cartela Grid */
+    .cartela-grid {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 6px;
+    }
+    
+    .cartela-item {
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+    
+    /* Called Numbers */
+    .called-ball {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    
+    /* Winner Card */
+    .winner-card {
+        padding: 20px;
+    }
+    
+    .winner-title {
+        font-size: 24px;
+    }
+    
+    .winner-reward {
+        font-size: 20px;
+    }
+    
+    /* Toast */
+    .toast {
+        font-size: 12px;
+        padding: 8px 16px;
+    }
+    
+    /* Selection Stats */
+    .selection-stats {
+        flex-direction: column;
+        gap: 5px;
+        text-align: center;
+    }
+    
+    /* Selected Cards */
+    .selected-card {
+        min-width: 100px;
+        padding: 10px;
+    }
+    
+    .selected-number {
+        font-size: 20px;
+    }
+    
+    /* Footer */
+    .footer {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Extra small devices */
+    .cartela-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+    }
+    
+    .cartela-item {
+        font-size: 11px;
+        padding: 6px 2px;
+    }
+    
+    .timer {
+        font-size: 28px;
+    }
+    
+    .called-ball {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+    
+    .round-badge {
+        font-size: 12px;
+    }
+    
+    .status-badge {
+        font-size: 12px;
+        padding: 4px 12px;
+    }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+    .cartela-item {
+        cursor: default;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .cartela-item:active {
+        transform: scale(0.95);
+        background: var(--primary);
+    }
+    
+    button, 
+    .btn-primary,
+    .nav-btn {
+        cursor: default;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    button:active,
+    .btn-primary:active {
+        transform: scale(0.98);
+    }
+}
+
+/* Landscape mode */
+@media (max-width: 900px) and (orientation: landscape) {
+    .cartela-grid {
+        max-height: 250px;
+    }
+    
+    .game-display {
+        margin-bottom: 10px;
+        padding: 10px;
+    }
+    
+    .timer {
+        font-size: 28px;
+        margin: 5px 0;
+    }
+    
+    .called-numbers {
+        max-height: 80px;
+    }
+}
+
+/* High contrast / accessibility */
+@media (prefers-contrast: high) {
+    :root {
+        --primary: #ffcc00;
+        --secondary: #003300;
+        --secondary-light: #004d00;
+    }
+    
+    .cartela-item.selected {
+        outline: 3px solid white;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

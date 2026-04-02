@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estif Bingo - Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a472a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #0f3e2a;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .sidebar-logo {
+            width: 60px;
+            margin-bottom: 10px;
+        }
+        
+        .sidebar-header h2 {
+            color: #f5c542;
+        }
+        
+        .nav-btn {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 5px 0;
+            background: none;
+            border: none;
+            color: white;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .nav-btn:hover {
+            background: rgba(245, 197, 66, 0.2);
+        }
+        
+        .nav-btn.active {
+            background: #f5c542;
+            color: #1a472a;
+        }
+        
+        .nav-btn .icon {
+            margin-right: 10px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #0f3e2a;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .stat-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #f5c542;
+        }
+        
+        .stat-label {
+            color: #aaa;
+            font-size: 14px;
+        }
+        
+        /* Game Code Card */
+        .game-code-card {
+            background: linear-gradient(135deg, #f5c542, #ff9800);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .game-code-label {
+            font-size: 14px;
+            color: #1a472a;
+            margin-bottom: 10px;
+        }
+        
+        .game-code {
+            font-size: 48px;
+            font-family: monospace;
+            font-weight: bold;
+            letter-spacing: 5px;
+            background: white;
+            display: inline-block;
+            padding: 10px 30px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .btn-copy {
+            background: #1a472a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        /* Tables */
+        .table-container {
+            background: #0f3e2a;
+            border-radius: 15px;
+            overflow-x: auto;
+            padding: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th {
+            background: rgba(0,0,0,0.3);
+            font-weight: bold;
+        }
+        
+        /* Buttons */
+        .btn-primary {
+            background: #f5c542;
+            color: #1a472a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #0f3e2a;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #2a5a3e;
+            color: white;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+                z-index: 100;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .game-code {
+                font-size: 28px;
+                letter-spacing: 3px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="/assets/images/logo.png" alt="Estif Bingo" class="sidebar-logo">
+                <h2>Estif Bingo</h2>
+            </div>
+            <nav>
+                <button class="nav-btn active" onclick="showTab('dashboard')">
+                    <span class="icon">📊</span> Dashboard
+                </button>
+                <button class="nav-btn" onclick="showTab('players')">
+                    <span class="icon">👥</span> Players
+                </button>
+                <button class="nav-btn" onclick="showTab('reports')">
+                    <span class="icon">📈</span> Reports
+                </button>
+                <button class="nav-btn" onclick="showTab('settings')">
+                    <span class="icon">⚙️</span> Settings
+                </button>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content active">
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎲</div>
+                        <div class="stat-value" id="totalRounds">0</div>
+                        <div class="stat-label">Total Rounds</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-value" id="totalPlayers">0</div>
+                        <div class="stat-label">Total Players</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-value" id="totalBet">0</div>
+                        <div class="stat-label">Total Bet (ETB)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-value" id="totalWon">0</div>
+                        <div class="stat-label">Total Won (ETB)</div>
+                    </div>
+                </div>
+                
+                <div class="game-code-card">
+                    <div class="game-code-label">🎮 ACTIVE GAME CODE</div>
+                    <div class="game-code" id="gameCode">ESTIF-001</div>
+                    <button class="btn-copy" onclick="copyGameCode()">📋 Copy Code</button>
+                    <p style="margin-top: 15px; font-size: 12px;">Share this code with players to join</p>
+                </div>
+                
+                <div class="table-container">
+                    <h3 style="margin-bottom: 15px;">Recent Rounds</h3>
+                    <table id="recentRoundsTable">
+                        <thead>
+                            <tr><th>Round</th><th>Date</th><th>Players</th><th>Total Bet</th><th>Winner</th><th>Status</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Players Tab -->
+            <div id="players-tab" class="tab-content">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn-primary" onclick="showCreatePlayerModal()">➕ Add Player</button>
+                </div>
+                <div class="table-container">
+                    <table id="playersTable">
+                        <thead>
+                            <tr><th>ID</th><th>Username</th><th>Email</th><th>Balance</th><th>Total Won</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Reports Tab -->
+            <div id="reports-tab" class="tab-content">
+                <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-primary" onclick="loadDailyReport()">📅 Daily</button>
+                    <button class="btn-primary" onclick="loadWeeklyReport()">📆 Weekly</button>
+                    <button class="btn-primary" onclick="loadMonthlyReport()">📊 Monthly</button>
+                </div>
+                <div class="table-container">
+                    <table id="reportsTable">
+                        <thead>
+                            <tr><th>Date</th><th>Rounds</th><th>Players</th><th>Total Bet</th><th>Total Won</th><th>Commission</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content">
+                <div class="table-container">
+                    <h3 style="margin-bottom: 20px;">Change Admin Password</h3>
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" id="currentPassword" style="background: #2a5a3e; color: white;">
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" id="newPassword" style="background: #2a5a3e; color: white;">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="confirmPassword" style="background: #2a5a3e; color: white;">
+                    </div>
+                    <button class="btn-primary" onclick="changePassword()">Update Password</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Create Player Modal -->
+    <div id="createPlayerModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 20px;">Create New Player</h3>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="playerUsername">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="playerEmail">
+            </div>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="playerFullName">
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="text" id="playerPhone">
+            </div>
+            <div class="form-group">
+                <label>Initial Balance (ETB)</label>
+                <input type="number" id="playerBalance" value="0">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="playerPassword">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-primary" onclick="createPlayer()">Create</button>
+                <button class="btn-primary" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const token = localStorage.getItem('token');
+        
+        // Check auth
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+        
+        // Tab switching
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(`${tab}-tab`).classList.add('active');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (tab === 'dashboard') loadDashboard();
+            if (tab === 'players') loadPlayers();
+            if (tab === 'reports') loadDailyReport();
+        }
+        
+        // Load dashboard
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                document.getElementById('totalRounds').textContent = data.totalRounds || 0;
+                document.getElementById('totalPlayers').textContent = data.totalPlayers || 0;
+                document.getElementById('totalBet').textContent = data.totalBet || 0;
+                document.getElementById('totalWon').textContent = data.totalWon || 0;
+                
+                // Load recent rounds
+                const roundsResponse = await fetch('/api/admin/recent-rounds', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const rounds = await roundsResponse.json();
+                
+                const tbody = document.querySelector('#recentRoundsTable tbody');
+                tbody.innerHTML = '';
+                rounds.forEach(round => {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = round.round_number;
+                    row.insertCell(1).textContent = new Date(round.created_at).toLocaleString();
+                    row.insertCell(2).textContent = round.total_players || 0;
+                    row.insertCell(3).textContent = `${round.total_bet || 0} ETB`;
+                    row.insertCell(4).textContent = round.winners ? JSON.parse(round.winners).join(', ') : '-';
+                    row.insertCell(5).innerHTML = `<span style="color: ${round.status === 'ended' ? '#4caf50' : '#ff9800'}">${round.status}</span>`;
+                });
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        // Load players
+        async function loadPlayers() {
+            try {
+                const response = await fetch('/api/admin/players', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const players = await response.json();
+                
+                const tbody = document.querySelector('#playersTable tbody');
+                tbody.innerHTML = '';
+                players.forEach(player => {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = player.user_id;
+                    row.insertCell(1).textContent = player.username;
+                    row.insertCell(2).textContent = player.email;
+                    row.insertCell(3).textContent = `${player.balance} ETB`;
+                    row.insertCell(4).textContent = `${player.total_won} ETB`;
+                    row.insertCell(5).innerHTML = player.is_active 
+                        ? '<span style="color: #4caf50;">Active</span>' 
+                        : '<span style="color: #f44336;">Disabled</span>';
+                    row.insertCell(6).innerHTML = `
+                        <button class="btn-success" onclick="adjustBalance(${player.user_id})">💰</button>
+                        <button class="btn-danger" onclick="togglePlayer(${player.user_id}, ${!player.is_active})">${player.is_active ? '🔴' : '🟢'}</button>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading players:', error);
+            }
+        }
+        
+        // Adjust balance
+        async function adjustBalance(userId) {
+            const amount = prompt('Enter amount (ETB):');
+            const type = confirm('Add to balance? OK for ADD, Cancel for DEDUCT');
+            
+            if (amount && !isNaN(amount)) {
+                try {
+                    const response = await fetch('/api/admin/update-balance', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            userId,
+                            amount: parseFloat(amount),
+                            type: type ? 'add' : 'deduct',
+                            description: 'Admin adjustment'
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        alert('Balance updated!');
+                        loadPlayers();
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+        }
+        
+        // Toggle player
+        async function togglePlayer(userId, isActive) {
+            try {
+                await fetch('/api/admin/toggle-player', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ userId, isActive })
+                });
+                loadPlayers();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Create player
+        async function createPlayer() {
+            const playerData = {
+                username: document.getElementById('playerUsername').value,
+                email: document.getElementById('playerEmail').value,
+                full_name: document.getElementById('playerFullName').value,
+                phone: document.getElementById('playerPhone').value,
+                initialBalance: parseFloat(document.getElementById('playerBalance').value),
+                password: document.getElementById('playerPassword').value
+            };
+            
+            try {
+                const response = await fetch('/api/admin/create-player', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(playerData)
+                });
+                
+                if (response.ok) {
+                    alert('Player created!');
+                    closeModal();
+                    loadPlayers();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Load daily report
+        async function loadDailyReport() {
+            const today = new Date().toISOString().split('T')[0];
+            try {
+                const response = await fetch(`/api/reports/daily?date=${today}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                updateReportsTable([data]);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Load weekly report
+        async function loadWeeklyReport() {
+            try {
+                const response = await fetch('/api/reports/weekly', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                updateReportsTable([data]);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Load monthly report
+        async function loadMonthlyReport() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            try {
+                const response = await fetch(`/api/reports/monthly?year=${year}&month=${month}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                updateReportsTable([data]);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Update reports table
+        function updateReportsTable(data) {
+            const tbody = document.querySelector('#reportsTable tbody');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = item.date || item.report_date || '-';
+                row.insertCell(1).textContent = item.total_rounds || item.total_games || 0;
+                row.insertCell(2).textContent = item.total_players || 0;
+                row.insertCell(3).textContent = `${(item.total_bet || 0).toFixed(2)} ETB`;
+                row.insertCell(4).textContent = `${(item.total_won || 0).toFixed(2)} ETB`;
+                row.insertCell(5).textContent = `${(item.total_commission || 0).toFixed(2)} ETB`;
+            });
+        }
+        
+        // Change password
+        async function changePassword() {
+            const current = document.getElementById('currentPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('confirmPassword').value;
+            
+            if (newPass !== confirm) {
+                alert('Passwords do not match');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ currentPassword: current, newPassword: newPass })
+                });
+                
+                if (response.ok) {
+                    alert('Password changed!');
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                } else {
+                    alert('Current password is incorrect');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Copy game code
+        function copyGameCode() {
+            const code = document.getElementById('gameCode').textContent;
+            navigator.clipboard.writeText(code);
+            alert('Game code copied!');
+        }
+        
+        // Modal functions
+        function showCreatePlayerModal() {
+            document.getElementById('createPlayerModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('createPlayerModal').style.display = 'none';
+        }
+        
+        // Initialize
+        loadDashboard();
+        
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            if (document.getElementById('dashboard-tab').classList.contains('active')) {
+                loadDashboard();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
