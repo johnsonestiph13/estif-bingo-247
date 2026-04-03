@@ -24,9 +24,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "../public")));
-app.use(compression());  // This uses the compression declared above
+app.use(compression());
+
 // ==================== DATABASE ====================
-const compression = require('compression');
 const DATA_FILE = path.join(__dirname, '../data/game-data.json');
 const CARTELA_DATA_FILE = path.join(__dirname, '../data/cartelas.json');
 
@@ -87,8 +87,8 @@ let gameState = {
     gameActive: false
 };
 
-// GLOBAL CARTELA TRACKING - ONE CARTELA PER PLAYER WORLDWIDE
-let globalTakenCartelas = new Map(); // cartelaNumber -> { playerId, playerName, timestamp }
+// GLOBAL CARTELA TRACKING
+let globalTakenCartelas = new Map();
 let globalTotalSelectedCartelas = 0;
 
 let selectionTimer = null;
@@ -275,7 +275,6 @@ function startActiveGame() {
     gameState.winners = [];
     gameState.gameActive = true;
     
-    // Calculate using GLOBAL selected cartelas
     const totalCartelas = globalTotalSelectedCartelas;
     const playersWithCartelas = Array.from(gameState.players.values()).filter(p => p.selectedCartelas.length > 0).length;
     const { totalPool, winnerReward, adminCommission } = calculateRewards(playersWithCartelas, totalCartelas, gameState.winPercentage);
@@ -517,7 +516,6 @@ app.get("/api/admin/player-transactions/:socketId", verifyAdminToken, (req, res)
     res.json({ success: true, transactions });
 });
 
-// Report endpoints
 app.get("/api/reports/daily", verifyAdminToken, (req, res) => {
     const date = req.query.date || new Date().toISOString().split('T')[0];
     const rounds = gameData.gameRounds.filter(r => r.timestamp?.startsWith(date));
@@ -574,7 +572,6 @@ io.on("connection", (socket) => {
     socket.emit('gameState', { status: gameState.status, round: gameState.round, timer: gameState.timer, drawnNumbers: gameState.drawnNumbers, playersCount: gameState.players.size, winPercentage: gameState.winPercentage });
     socket.emit('timerUpdate', { seconds: gameState.timer, round: gameState.round, formatted: formatTime(gameState.timer) });
     
-    // Send initial global stats
     const { totalBetAmount, winnerReward, totalCartelas, remainingCartelas } = calculateRewardPool();
     socket.emit('rewardPoolUpdate', { totalSelectedCartelas: totalCartelas, totalBetAmount, winnerReward, winPercentage: gameState.winPercentage, remainingCartelas });
     
@@ -646,7 +643,6 @@ io.on("connection", (socket) => {
     
     socket.on("disconnect", () => {
         console.log(`🔴 Player disconnected: ${socket.id}`);
-        // Release all cartelas held by this player
         for (const [cartelaNum, cartela] of globalTakenCartelas) {
             if (cartela.playerId === socket.id) globalTakenCartelas.delete(cartelaNum);
         }
