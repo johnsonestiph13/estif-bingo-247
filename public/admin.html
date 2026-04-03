@@ -3,63 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estif Bingo - Admin</title>
+    <title>Estif Bingo - Admin Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #1a472a; font-family: 'Segoe UI', sans-serif; padding: 20px; color: #f5efdc; }
+        body { background: linear-gradient(135deg, #1a472a 0%, #0d2e1e 100%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #f5efdc; min-height: 100vh; }
         .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: #0f3e2a; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 20px; margin-bottom: 20px; }
-        .stat-card { background: #0f3e2a; padding: 20px; border-radius: 15px; text-align: center; }
+        
+        /* Header */
+        .header { background: rgba(15, 62, 42, 0.95); backdrop-filter: blur(12px); padding: 20px; border-radius: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .header h1 { color: #f5c542; font-size: 24px; }
+        .header-buttons { display: flex; gap: 10px; }
+        button { background: #f5c542; color: #1a472a; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        button:hover { transform: translateY(-2px); background: #e0b12e; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-danger:hover { background: #d32f2f; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-success:hover { background: #45a049; }
+        .btn-info { background: #2196f3; color: white; }
+        .btn-info:hover { background: #1976d2; }
+        
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: rgba(15, 62, 42, 0.95); backdrop-filter: blur(12px); padding: 20px; border-radius: 15px; text-align: center; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
         .stat-value { font-size: 32px; font-weight: bold; color: #f5c542; }
-        .control-panel, .table-container { background: #0f3e2a; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        button { background: #f5c542; color: #1a472a; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; margin: 5px; }
+        .stat-label { font-size: 12px; opacity: 0.8; margin-top: 5px; }
+        
+        /* Control Panel */
+        .control-panel { background: rgba(15, 62, 42, 0.95); backdrop-filter: blur(12px); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+        .control-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+        select { background: #2a5a3e; color: white; padding: 8px 15px; border-radius: 10px; border: none; cursor: pointer; }
+        input { background: #2a5a3e; color: white; padding: 8px 15px; border-radius: 10px; border: none; }
+        input::placeholder { color: #aaa; }
+        
+        /* Tabs */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .tab-btn { background: #2a5a3e; color: white; }
+        .tab-btn { background: #2a5a3e; color: white; padding: 10px 20px; border-radius: 30px; }
         .tab-btn.active { background: #f5c542; color: #1a472a; }
-        .tab-content { display: none; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
+        
+        /* Tables */
+        .table-container { background: rgba(15, 62, 42, 0.95); backdrop-filter: blur(12px); padding: 20px; border-radius: 15px; overflow-x: auto; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .called-ball { background: #f5c542; color: #1a472a; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 3px; }
-        .modal { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index:1000; }
-        .modal-content { background: #0f3e2a; padding: 30px; border-radius: 20px; width: 90%; max-width: 500px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { background: rgba(0,0,0,0.3); font-weight: bold; }
+        tr:hover { background: rgba(245, 197, 66, 0.1); }
+        
+        /* Called Numbers */
+        .called-numbers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .called-ball { background: #f5c542; color: #1a472a; width: 45px; height: 45px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; }
+        
+        /* Search Box */
         .search-box { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .search-box input { flex: 1; padding: 12px; border-radius: 30px; border: none; background: #2a5a3e; color: white; font-size: 16px; }
-        .search-box input::placeholder { color: #aaa; }
+        .search-box input { flex: 1; padding: 12px; border-radius: 30px; }
         .player-detail-card { background: #2a5a3e; border-radius: 15px; padding: 20px; margin-bottom: 20px; }
-        .player-detail-card h3 { color: #f5c542; margin-bottom: 15px; }
-        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .detail-label { font-weight: bold; opacity: 0.8; }
         .detail-value { color: #f5c542; font-weight: bold; }
-        .transaction-history { max-height: 300px; overflow-y: auto; }
-        .transaction-item { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 13px; }
+        .transaction-item { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 13px; }
         .transaction-add { color: #4caf50; }
         .transaction-remove { color: #f44336; }
-        .btn-add { background: #4caf50; color: white; }
-        .btn-remove { background: #f44336; color: white; }
-        .btn-search { background: #2196f3; color: white; }
-        @media (max-width:768px){ .stats-grid { grid-template-columns: 1fr 1fr; } }
+        
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: #0f3e2a; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; }
+        .modal-content input { width: 100%; margin: 10px 0; }
+        
+        /* Toast */
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 30px; background: #333; color: white; z-index: 2000; animation: slideUp 0.3s; }
+        .toast.success { background: #4caf50; }
+        .toast.error { background: #f44336; }
+        .toast.info { background: #2196f3; }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .header { flex-direction: column; text-align: center; } }
     </style>
 </head>
 <body>
 <div class="container">
     <!-- Login Section -->
-    <div id="loginSection" class="control-panel" style="max-width:400px; margin:100px auto; text-align:center;">
-        <h2>Admin Login</h2>
-        <input type="email" id="loginEmail" placeholder="Email" style="width:100%; padding:10px; margin:10px 0; border-radius:10px;"><br>
-        <input type="password" id="loginPassword" placeholder="Password" style="width:100%; padding:10px; margin:10px 0; border-radius:10px;"><br>
-        <button onclick="adminLogin()">Login</button>
-        <div id="loginError" style="color:#ff8888; margin-top:10px;"></div>
+    <div id="loginSection" class="control-panel" style="max-width: 400px; margin: 100px auto; text-align: center;">
+        <h2 style="margin-bottom: 20px;">🔐 Estif Bingo Admin</h2>
+        <input type="email" id="loginEmail" placeholder="Admin Email" style="width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px;">
+        <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px;">
+        <button onclick="adminLogin()" style="width: 100%; padding: 12px; margin-top: 10px;">Login</button>
+        <div id="loginError" style="color: #ff8888; margin-top: 15px;"></div>
     </div>
 
     <!-- Dashboard Section -->
-    <div id="dashboardSection" style="display:none;">
+    <div id="dashboardSection" style="display: none;">
         <div class="header">
-            <h1>🎲 Estif Bingo Admin</h1>
-            <div>
-                <button onclick="showSettingsModal()">⚙️ Settings</button>
-                <button onclick="adminLogout()">Logout</button>
+            <h1>🎲 Estif Bingo - Admin Dashboard</h1>
+            <div class="header-buttons">
+                <button class="btn-info" onclick="showSettingsModal()">⚙️ Settings</button>
+                <button class="btn-danger" onclick="adminLogout()">🚪 Logout</button>
             </div>
         </div>
 
@@ -68,106 +109,91 @@
 
         <!-- Game Controls -->
         <div class="control-panel">
-            <label>Win %: </label>
-            <select id="winPercentage" onchange="updateWinPercentage()">
-                <option value="70">70%</option>
-                <option value="75" selected>75%</option>
-                <option value="76">76%</option>
-                <option value="80">80%</option>
-            </select>
-            <button onclick="forceStartGame()">Force Start</button>
-            <button onclick="forceEndGame()">Force End</button>
-            <button onclick="resetGame()">Reset Game</button>
+            <h3>🎮 Game Controls</h3>
+            <div class="control-group">
+                <label>Win Percentage:</label>
+                <select id="winPercentage" onchange="updateWinPercentage()">
+                    <option value="70">70%</option>
+                    <option value="75" selected>75%</option>
+                    <option value="76">76%</option>
+                    <option value="80">80%</option>
+                </select>
+                <button onclick="forceStartGame()">▶ Force Start</button>
+                <button onclick="forceEndGame()" class="btn-danger">⏹ Force End</button>
+                <button onclick="resetGame()" class="btn-info">🔄 Reset Game</button>
+                <button onclick="refreshData()">🔄 Refresh</button>
+            </div>
         </div>
 
         <!-- Drawn Numbers -->
         <div class="control-panel">
-            <h3>Drawn Numbers</h3>
-            <div id="drawnNumbers"></div>
+            <h3>🔢 Drawn Numbers</h3>
+            <div id="drawnNumbers" class="called-numbers">No numbers drawn yet</div>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab-btn" onclick="showTab('players')">👥 All Players</button>
-            <button class="tab-btn active" onclick="showTab('search')">🔍 Search Player</button>
+            <button class="tab-btn" onclick="showTab('search')">🔍 Search Player</button>
             <button class="tab-btn" onclick="showTab('requests')">📨 Balance Requests</button>
             <button class="tab-btn" onclick="showTab('registrations')">📝 Pending Registrations</button>
-            <button class="tab-btn" onclick="showTab('reports')">📊 Reports</button>
+            <button class="tab-btn active" onclick="showTab('reports')">📊 Reports</button>
         </div>
 
         <!-- All Players Tab -->
         <div id="playersTab" class="tab-content">
             <div class="table-container">
-                <h3>All Registered Players</h3>
+                <h3>👥 All Registered Players</h3>
                 <table id="playersTable">
                     <thead>
-                        <tr><th>Phone</th><th>Username</th><th>Balance (ETB)</th><th>Total Added (ETB)</th><th>Actions</th></tr>
+                        <tr><th>Phone</th><th>Username</th><th>Balance (ETB)</th><th>Total Added</th><th>Registered</th><th>Actions</th></tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody id="playersTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- Search Player Tab -->
-        <div id="searchTab" class="tab-content active">
+        <div id="searchTab" class="tab-content">
             <div class="control-panel">
                 <h3>🔍 Find Player by Phone Number</h3>
                 <div class="search-box">
                     <input type="text" id="searchPhone" placeholder="Enter phone number (e.g., 0912345678)" autocomplete="off">
-                    <button class="btn-search" onclick="searchPlayer()">🔍 Search</button>
+                    <button class="btn-info" onclick="searchPlayer()">🔍 Search</button>
                 </div>
                 <div id="searchResult" style="display: none;">
                     <div class="player-detail-card">
                         <h3>📱 Player Details</h3>
-                        <div class="detail-row">
-                            <span class="detail-label">📞 Phone Number:</span>
-                            <span class="detail-value" id="detailPhone">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">👤 Username:</span>
-                            <span class="detail-value" id="detailUsername">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">💰 Current Balance:</span>
-                            <span class="detail-value" id="detailBalance">0</span>
-                            <span>ETB</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">➕ Total Manual Added:</span>
-                            <span class="detail-value" id="detailTotalAdded">0</span>
-                            <span>ETB</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">📅 Registered On:</span>
-                            <span class="detail-value" id="detailRegistered">-</span>
-                        </div>
+                        <div class="detail-row"><span class="detail-label">📞 Phone:</span><span class="detail-value" id="detailPhone">-</span></div>
+                        <div class="detail-row"><span class="detail-label">👤 Username:</span><span class="detail-value" id="detailUsername">-</span></div>
+                        <div class="detail-row"><span class="detail-label">💰 Balance:</span><span class="detail-value" id="detailBalance">0</span> ETB</div>
+                        <div class="detail-row"><span class="detail-label">➕ Total Manual Added:</span><span class="detail-value" id="detailTotalAdded">0</span> ETB</div>
+                        <div class="detail-row"><span class="detail-label">📅 Registered:</span><span class="detail-value" id="detailRegistered">-</span></div>
                     </div>
                     <div class="player-detail-card">
                         <h3>💰 Balance Actions</h3>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <input type="number" id="actionAmount" placeholder="Amount (ETB)" style="padding: 10px; border-radius: 10px; border: none; background: #2a5a3e; color: white;">
-                            <button class="btn-add" onclick="addBalanceToPlayer()">➕ Add Balance</button>
-                            <button class="btn-remove" onclick="removeBalanceFromPlayer()">➖ Remove Balance</button>
+                            <input type="number" id="actionAmount" placeholder="Amount (ETB)" style="flex: 1;">
+                            <button class="btn-success" onclick="addBalanceToPlayer()">➕ Add</button>
+                            <button class="btn-danger" onclick="removeBalanceFromPlayer()">➖ Remove</button>
                         </div>
                     </div>
                     <div class="player-detail-card">
-                        <h3>📜 Manual Balance History</h3>
-                        <div id="transactionHistory" class="transaction-history">
-                            <p style="text-align:center; opacity:0.7;">No manual transactions yet</p>
-                        </div>
+                        <h3>📜 Balance History</h3>
+                        <div id="transactionHistory" style="max-height: 300px; overflow-y: auto;"></div>
                     </div>
                 </div>
-                <div id="searchError" style="color: #ff8888; text-align: center; display: none;">Player not found</div>
+                <div id="searchError" style="color: #ff8888; text-align: center; display: none;">❌ Player not found</div>
             </div>
         </div>
 
         <!-- Balance Requests Tab -->
         <div id="requestsTab" class="tab-content">
             <div class="table-container">
-                <h3>Pending Balance Requests</h3>
+                <h3>📨 Pending Balance Requests</h3>
                 <table id="requestsTable">
-                    <thead><tr><th>Player</th><th>Amount</th><th>Message</th><th>Actions</th></tr></thead>
-                    <tbody></tbody>
+                    <thead><tr><th>Player</th><th>Amount</th><th>Message</th><th>Date</th><th>Actions</th></tr></thead>
+                    <tbody id="requestsTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -175,34 +201,57 @@
         <!-- Pending Registrations Tab -->
         <div id="registrationsTab" class="tab-content">
             <div class="table-container">
-                <h3>Pending Phone Registrations</h3>
+                <h3>📝 Pending Phone Registrations</h3>
                 <table id="regTable">
                     <thead><tr><th>Phone</th><th>Requested At</th><th>Actions</th></tr></thead>
-                    <tbody></tbody>
+                    <tbody id="regTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- Reports Tab -->
-        <div id="reportsTab" class="tab-content">
+        <div id="reportsTab" class="tab-content active">
+            <div class="control-panel">
+                <h3>📅 Report Filters</h3>
+                <div class="control-group">
+                    <select id="reportType" onchange="toggleReportType()">
+                        <option value="daily">📅 Daily Report</option>
+                        <option value="weekly">📆 Weekly Report</option>
+                        <option value="monthly">📊 Monthly Report</option>
+                        <option value="range">📅 Date Range</option>
+                        <option value="commission">💰 Commission Summary</option>
+                    </select>
+                    <div id="dailyFilter"><input type="date" id="reportDate"></div>
+                    <div id="weeklyFilter" style="display: none;"><input type="number" id="reportYear" placeholder="Year" style="width: 80px;"> <input type="number" id="reportWeek" placeholder="Week" style="width: 80px;"></div>
+                    <div id="monthlyFilter" style="display: none;"><input type="month" id="reportMonth"></div>
+                    <div id="rangeFilter" style="display: none;"><input type="date" id="startDate"> to <input type="date" id="endDate"></div>
+                    <button class="btn-info" onclick="loadReport()">📊 Generate</button>
+                </div>
+            </div>
+            <div id="reportSummary" class="stats-grid"></div>
             <div class="table-container">
-                <h3>Daily Report</h3>
-                <div id="reportContent"></div>
+                <h3>💰 Commission Per Round</h3>
+                <table id="commissionTable">
+                    <thead><tr><th>Round</th><th>Date</th><th>Total Pool</th><th>Winner Reward</th><th>Commission</th><th>Commission %</th><th>Winners</th></tr></thead>
+                    <tbody id="commissionTableBody"><tr><td colspan="7">Select a report and click Generate</td></tr></tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Settings Modal -->
-<div id="settingsModal" class="modal" style="display:none;">
+<div id="settingsModal" class="modal" style="display: none;">
     <div class="modal-content">
-        <h3>Change Password</h3>
-        <input type="password" id="curPwd" placeholder="Current Password" style="width:100%; padding:10px; margin:10px 0; border-radius:10px;">
-        <input type="password" id="newPwd" placeholder="New Password" style="width:100%; padding:10px; margin:10px 0; border-radius:10px;">
-        <input type="password" id="confPwd" placeholder="Confirm Password" style="width:100%; padding:10px; margin:10px 0; border-radius:10px;">
-        <button onclick="changeAdminPassword()">Update</button>
-        <button onclick="closeSettingsModal()">Cancel</button>
-        <div id="settingsError" style="color:#ff8888;"></div>
+        <h3>⚙️ Change Admin Password</h3>
+        <input type="password" id="curPwd" placeholder="Current Password">
+        <input type="password" id="newPwd" placeholder="New Password">
+        <input type="password" id="confPwd" placeholder="Confirm Password">
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button onclick="changeAdminPassword()" class="btn-success">Update</button>
+            <button onclick="closeSettingsModal()">Cancel</button>
+        </div>
+        <div id="settingsError" style="color: #ff8888; margin-top: 10px;"></div>
     </div>
 </div>
 
@@ -211,72 +260,78 @@
     let adminToken = localStorage.getItem('adminToken');
     let socket = null;
     let currentSearchPlayer = null;
+    let autoRefreshInterval = null;
 
+    // ==================== INITIALIZATION ====================
     if (adminToken) {
         document.getElementById('loginSection').style.display = 'none';
         document.getElementById('dashboardSection').style.display = 'block';
         initSocket();
-        refreshStats();
-        startAutoRefresh();
+        refreshData();
         loadAllPlayers();
         loadPendingRegistrations();
+        loadBalanceRequests();
+        startAutoRefresh();
     }
 
-    // ==================== AUTH ====================
+    // ==================== AUTHENTICATION ====================
     async function adminLogin() {
-        let email = document.getElementById('loginEmail').value;
-        let pwd = document.getElementById('loginPassword').value;
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
         try {
-            let r = await fetch('/api/admin/login', {
+            const res = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password: pwd })
+                body: JSON.stringify({ email, password })
             });
-            let d = await r.json();
-            if (d.success) {
-                adminToken = d.token;
+            const data = await res.json();
+            if (data.success) {
+                adminToken = data.token;
                 localStorage.setItem('adminToken', adminToken);
                 location.reload();
             } else {
                 document.getElementById('loginError').innerText = 'Invalid credentials';
             }
-        } catch(e) {
+        } catch (e) {
             document.getElementById('loginError').innerText = 'Connection error';
         }
     }
 
     function adminLogout() {
         localStorage.removeItem('adminToken');
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
         location.reload();
     }
 
-    // ==================== SOCKET ====================
+    // ==================== SOCKET.IO ====================
     function initSocket() {
         socket = io();
-        socket.on('gameState', updateDashboard);
-        socket.on('playersUpdate', () => { loadAllPlayers(); refreshStats(); });
-        socket.on('numberDrawn', () => refreshStats());
+        socket.on('gameState', (data) => updateDashboard(data));
+        socket.on('playersUpdate', () => { loadAllPlayers(); refreshData(); });
+        socket.on('numberDrawn', () => refreshData());
         socket.on('newBalanceRequest', () => { if (document.getElementById('requestsTab').classList.contains('active')) loadBalanceRequests(); showToast('New balance request!', 'info'); });
         socket.on('newPendingRegistration', () => { if (document.getElementById('registrationsTab').classList.contains('active')) loadPendingRegistrations(); showToast('New registration request!', 'info'); });
+        socket.on('balanceUpdated', () => { refreshData(); if (currentSearchPlayer) searchPlayer(); });
     }
 
-    // ==================== STATS & DASHBOARD ====================
-    async function refreshStats() {
+    // ==================== DATA REFRESH ====================
+    async function refreshData() {
         if (!adminToken) return;
         try {
-            let r = await fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${adminToken}` } });
-            let d = await r.json();
-            if (d.success) updateDashboard(d);
-        } catch(e) {}
+            const res = await fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            if (data.success) updateDashboard(data);
+        } catch (e) { console.error('Refresh error:', e); }
     }
 
     function updateDashboard(d) {
         document.getElementById('statsGrid').innerHTML = `
-            <div class="stat-card"><div class="stat-value">${d.status || '--'}</div><div>Status</div></div>
-            <div class="stat-card"><div class="stat-value">${d.round || 0}</div><div>Round</div></div>
-            <div class="stat-card"><div class="stat-value">${d.playersCount || 0}</div><div>Players</div></div>
-            <div class="stat-card"><div class="stat-value">${d.totalBalance || 0}</div><div>Total Balance</div></div>
-            <div class="stat-card"><div class="stat-value">${d.globalSelectedCartelas || 0}</div><div>Global Selected</div></div>
+            <div class="stat-card"><div class="stat-value">${d.status || '--'}</div><div class="stat-label">Game Status</div></div>
+            <div class="stat-card"><div class="stat-value">${d.round || 0}</div><div class="stat-label">Current Round</div></div>
+            <div class="stat-card"><div class="stat-value">${d.playersCount || 0}</div><div class="stat-label">Players Online</div></div>
+            <div class="stat-card"><div class="stat-value">${d.totalBalance || 0}</div><div class="stat-label">Total Balance (ETB)</div></div>
+            <div class="stat-card"><div class="stat-value">${d.globalSelectedCartelas || 0}</div><div class="stat-label">Global Selected</div></div>
+            <div class="stat-card"><div class="stat-value">${d.timer || 0}s</div><div class="stat-label">Timer</div></div>
         `;
         document.getElementById('winPercentage').value = d.winPercentage || 75;
         if (d.drawnNumbers?.length) {
@@ -284,24 +339,34 @@
         }
     }
 
-    // ==================== ALL PLAYERS ====================
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => refreshData(), 5000);
+    }
+
+    // ==================== PLAYERS ====================
     async function loadAllPlayers() {
-        let r = await fetch('/api/admin/players', { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        let d = await r.json();
-        if (d.success) {
-            let tbody = document.querySelector('#playersTable tbody');
-            tbody.innerHTML = '';
-            d.players.forEach(p => {
-                let row = tbody.insertRow();
-                row.insertCell(0).textContent = p.phone;
-                row.insertCell(1).textContent = p.username;
-                row.insertCell(2).textContent = p.balance.toFixed(2) + ' ETB';
-                row.insertCell(3).textContent = (p.totalManualAdded || 0).toFixed(2) + ' ETB';
-                row.insertCell(4).innerHTML = `
-                    <button onclick="searchAndSelect('${p.phone}')">🔍 View</button>
-                `;
-            });
-        }
+        try {
+            const res = await fetch('/api/admin/players', { headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            if (data.success) {
+                const tbody = document.getElementById('playersTableBody');
+                tbody.innerHTML = '';
+                if (!data.players.length) {
+                    tbody.innerHTML = '<tr><td colspan="6">No players registered</td></tr>';
+                    return;
+                }
+                data.players.forEach(p => {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = p.phone;
+                    row.insertCell(1).textContent = p.username;
+                    row.insertCell(2).textContent = p.balance.toFixed(2);
+                    row.insertCell(3).textContent = (p.totalManualAdded || 0).toFixed(2);
+                    row.insertCell(4).textContent = new Date(p.registeredAt).toLocaleDateString();
+                    row.insertCell(5).innerHTML = `<button class="btn-info" onclick="searchAndSelect('${p.phone}')">🔍 View</button>`;
+                });
+            }
+        } catch (e) { console.error('Error loading players:', e); }
     }
 
     function searchAndSelect(phone) {
@@ -312,278 +377,327 @@
 
     // ==================== SEARCH PLAYER ====================
     async function searchPlayer() {
-        let phone = document.getElementById('searchPhone').value.trim();
-        if (!phone) {
-            showToast('Please enter a phone number', 'error');
-            return;
-        }
-        let r = await fetch(`/api/admin/player/${encodeURIComponent(phone)}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        let d = await r.json();
-        if (d.success && d.player) {
-            currentSearchPlayer = d.player;
-            document.getElementById('searchResult').style.display = 'block';
-            document.getElementById('searchError').style.display = 'none';
-            document.getElementById('detailPhone').textContent = d.player.phone;
-            document.getElementById('detailUsername').textContent = d.player.username;
-            document.getElementById('detailBalance').textContent = d.player.balance.toFixed(2);
-            document.getElementById('detailTotalAdded').textContent = (d.player.totalManualAdded || 0).toFixed(2);
-            document.getElementById('detailRegistered').textContent = new Date(d.player.registeredAt).toLocaleString();
-            document.getElementById('actionAmount').value = '';
-            // Load transaction history
-            let txnR = await fetch(`/api/admin/player-transactions/${encodeURIComponent(phone)}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-            let txnD = await txnR.json();
-            let historyDiv = document.getElementById('transactionHistory');
-            if (txnD.success && txnD.transactions.length) {
-                historyDiv.innerHTML = txnD.transactions.map(t => `
-                    <div class="transaction-item">
-                        <span class="${t.type === 'admin_add' ? 'transaction-add' : 'transaction-remove'}">
-                            ${t.type === 'admin_add' ? '➕ ADDED' : '➖ REMOVED'}
-                        </span>
-                        : ${t.amount} ETB
-                        <span style="opacity:0.6; margin-left:10px;">${new Date(t.timestamp).toLocaleString()}</span>
-                        ${t.note ? `<br><small>${t.note}</small>` : ''}
-                    </div>
-                `).join('');
+        const phone = document.getElementById('searchPhone').value.trim();
+        if (!phone) { showToast('Enter phone number', 'error'); return; }
+        try {
+            const res = await fetch(`/api/admin/player/${encodeURIComponent(phone)}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            if (data.success && data.player) {
+                currentSearchPlayer = data.player;
+                document.getElementById('searchResult').style.display = 'block';
+                document.getElementById('searchError').style.display = 'none';
+                document.getElementById('detailPhone').textContent = data.player.phone;
+                document.getElementById('detailUsername').textContent = data.player.username;
+                document.getElementById('detailBalance').textContent = data.player.balance.toFixed(2);
+                document.getElementById('detailTotalAdded').textContent = (data.player.totalManualAdded || 0).toFixed(2);
+                document.getElementById('detailRegistered').textContent = new Date(data.player.registeredAt).toLocaleString();
+                // Load transaction history
+                const txnRes = await fetch(`/api/admin/player-transactions/${encodeURIComponent(phone)}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+                const txnData = await txnRes.json();
+                const historyDiv = document.getElementById('transactionHistory');
+                if (txnData.success && txnData.transactions.length) {
+                    historyDiv.innerHTML = txnData.transactions.map(t => `<div class="transaction-item"><span class="${t.type === 'admin_add' ? 'transaction-add' : 'transaction-remove'}">${t.type === 'admin_add' ? '➕ ADDED' : '➖ REMOVED'}</span> ${t.amount} ETB - ${new Date(t.timestamp).toLocaleString()}${t.note ? `<br><small>${t.note}</small>` : ''}</div>`).join('');
+                } else {
+                    historyDiv.innerHTML = '<div style="text-align:center; opacity:0.7;">No manual transactions</div>';
+                }
             } else {
-                historyDiv.innerHTML = '<p style="text-align:center; opacity:0.7;">No manual transactions yet</p>';
+                document.getElementById('searchResult').style.display = 'none';
+                document.getElementById('searchError').style.display = 'block';
+                currentSearchPlayer = null;
             }
-        } else {
-            document.getElementById('searchResult').style.display = 'none';
-            document.getElementById('searchError').style.display = 'block';
-            currentSearchPlayer = null;
-        }
+        } catch (e) { console.error('Search error:', e); showToast('Error searching player', 'error'); }
     }
 
     async function addBalanceToPlayer() {
         if (!currentSearchPlayer) return;
-        let amount = parseFloat(document.getElementById('actionAmount').value);
-        if (isNaN(amount) || amount <= 0) {
-            showToast('Please enter a valid positive amount', 'error');
-            return;
-        }
-        let r = await fetch('/api/admin/add-balance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ phone: currentSearchPlayer.phone, amount: amount, note: 'Manual add by admin' })
-        });
-        let d = await r.json();
-        if (d.success) {
-            showToast(`Added ${amount} ETB to ${currentSearchPlayer.username}`, 'success');
-            searchPlayer(); // refresh
-            loadAllPlayers();
-            refreshStats();
-        } else {
-            showToast(d.message || 'Failed to add balance', 'error');
-        }
+        const amount = parseFloat(document.getElementById('actionAmount').value);
+        if (isNaN(amount) || amount <= 0) { showToast('Enter valid amount', 'error'); return; }
+        try {
+            const res = await fetch('/api/admin/add-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                body: JSON.stringify({ phone: currentSearchPlayer.phone, amount, note: 'Admin manual add' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`Added ${amount} ETB`, 'success');
+                document.getElementById('actionAmount').value = '';
+                searchPlayer();
+                loadAllPlayers();
+                refreshData();
+            } else { showToast(data.message || 'Failed', 'error'); }
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     async function removeBalanceFromPlayer() {
         if (!currentSearchPlayer) return;
-        let amount = parseFloat(document.getElementById('actionAmount').value);
-        if (isNaN(amount) || amount <= 0) {
-            showToast('Please enter a valid positive amount', 'error');
-            return;
-        }
-        if (amount > currentSearchPlayer.balance) {
-            showToast(`Insufficient balance! Player has ${currentSearchPlayer.balance} ETB`, 'error');
-            return;
-        }
-        let r = await fetch('/api/admin/remove-balance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ phone: currentSearchPlayer.phone, amount: amount, note: 'Manual removal by admin' })
-        });
-        let d = await r.json();
-        if (d.success) {
-            showToast(`Removed ${amount} ETB from ${currentSearchPlayer.username}`, 'success');
-            searchPlayer(); // refresh
-            loadAllPlayers();
-            refreshStats();
-        } else {
-            showToast(d.message || 'Failed to remove balance', 'error');
-        }
+        const amount = parseFloat(document.getElementById('actionAmount').value);
+        if (isNaN(amount) || amount <= 0) { showToast('Enter valid amount', 'error'); return; }
+        if (amount > currentSearchPlayer.balance) { showToast('Insufficient balance', 'error'); return; }
+        try {
+            const res = await fetch('/api/admin/remove-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                body: JSON.stringify({ phone: currentSearchPlayer.phone, amount, note: 'Admin manual remove' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`Removed ${amount} ETB`, 'success');
+                document.getElementById('actionAmount').value = '';
+                searchPlayer();
+                loadAllPlayers();
+                refreshData();
+            } else { showToast(data.message || 'Failed', 'error'); }
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     // ==================== BALANCE REQUESTS ====================
     async function loadBalanceRequests() {
-        let r = await fetch('/api/admin/balance-requests', { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        let d = await r.json();
-        let tbody = document.querySelector('#requestsTable tbody');
-        tbody.innerHTML = '';
-        if (!d.requests?.length) {
-            tbody.innerHTML = '<tr><td colspan="4">No pending requests</td></tr>';
-            return;
-        }
-        d.requests.forEach(req => {
-            let row = tbody.insertRow();
-            row.insertCell(0).textContent = req.username;
-            row.insertCell(1).textContent = req.amount + ' ETB';
-            row.insertCell(2).textContent = req.message;
-            row.insertCell(3).innerHTML = `<button onclick="approveRequest('${req.id}', ${req.amount})">Approve</button>`;
-        });
+        try {
+            const res = await fetch('/api/admin/balance-requests', { headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            const tbody = document.getElementById('requestsTableBody');
+            if (!data.requests?.length) { tbody.innerHTML = '<tr><td colspan="5">No pending requests</td></tr>'; return; }
+            tbody.innerHTML = '';
+            data.requests.forEach(req => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = req.username;
+                row.insertCell(1).textContent = req.amount + ' ETB';
+                row.insertCell(2).textContent = req.message;
+                row.insertCell(3).textContent = new Date(req.timestamp).toLocaleString();
+                row.insertCell(4).innerHTML = `<button class="btn-success" onclick="approveRequest('${req.id}', ${req.amount})">Approve</button>`;
+            });
+        } catch (e) { console.error('Error loading requests:', e); }
     }
 
     async function approveRequest(id, amount) {
-        let r = await fetch('/api/admin/approve-request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ requestId: id, amount })
-        });
-        let d = await r.json();
-        if (d.success) {
-            alert(`Approved! New balance: ${d.newBalance} ETB`);
-            loadBalanceRequests();
-            loadAllPlayers();
-            refreshStats();
-        } else {
-            alert('Failed to approve request');
-        }
+        try {
+            const res = await fetch('/api/admin/approve-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                body: JSON.stringify({ requestId: id, amount })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Request approved!', 'success');
+                loadBalanceRequests();
+                loadAllPlayers();
+                refreshData();
+            } else { showToast(data.message || 'Failed', 'error'); }
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     // ==================== PENDING REGISTRATIONS ====================
     async function loadPendingRegistrations() {
-        let r = await fetch('/api/admin/pending-registrations', { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        let d = await r.json();
-        let tbody = document.querySelector('#regTable tbody');
-        tbody.innerHTML = '';
-        if (!d.pending?.length) {
-            tbody.innerHTML = '<tr><td colspan="3">No pending registrations</td></tr>';
-            return;
-        }
-        d.pending.forEach(reg => {
-            let row = tbody.insertRow();
-            row.insertCell(0).textContent = reg.phone;
-            row.insertCell(1).textContent = new Date(reg.timestamp).toLocaleString();
-            row.insertCell(2).innerHTML = `<button onclick="approveRegistration('${reg.phone}', '${reg.socketId}')">Approve & Give 100 ETB</button>`;
-        });
+        try {
+            const res = await fetch('/api/admin/pending-registrations', { headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            const tbody = document.getElementById('regTableBody');
+            if (!data.pending?.length) { tbody.innerHTML = '<tr><td colspan="3">No pending registrations</td></tr>'; return; }
+            tbody.innerHTML = '';
+            data.pending.forEach(reg => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = reg.phone;
+                row.insertCell(1).textContent = new Date(reg.timestamp).toLocaleString();
+                row.insertCell(2).innerHTML = `<button class="btn-success" onclick="approveRegistration('${reg.phone}', '${reg.socketId}')">Approve & Give 30 ETB</button>`;
+            });
+        } catch (e) { console.error('Error loading registrations:', e); }
     }
 
     async function approveRegistration(phone, socketId) {
-        let username = prompt('Enter a username for this player (optional):', `Player_${phone.slice(-4)}`);
+        const username = prompt('Enter username (optional):', `Player_${phone.slice(-4)}`);
         if (username === null) return;
-        let r = await fetch('/api/admin/approve-registration', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ phone, socketId, username })
-        });
-        let d = await r.json();
-        if (d.success) {
-            alert('Registration approved! Player received 100 ETB.');
-            loadPendingRegistrations();
-            loadAllPlayers();
-            refreshStats();
-        } else {
-            alert('Failed: ' + d.message);
-        }
+        try {
+            const res = await fetch('/api/admin/approve-registration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                body: JSON.stringify({ phone, socketId, username })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Registration approved!', 'success');
+                loadPendingRegistrations();
+                loadAllPlayers();
+                refreshData();
+            } else { showToast(data.message || 'Failed', 'error'); }
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     // ==================== GAME CONTROLS ====================
     async function updateWinPercentage() {
-        let pct = parseInt(document.getElementById('winPercentage').value);
-        await fetch('/api/admin/win-percentage', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ percentage: pct })
-        });
-        alert(`Win % set to ${pct}%`);
-        refreshStats();
+        const pct = parseInt(document.getElementById('winPercentage').value);
+        try {
+            await fetch('/api/admin/win-percentage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                body: JSON.stringify({ percentage: pct })
+            });
+            showToast(`Win % set to ${pct}%`, 'success');
+            refreshData();
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     async function forceStartGame() {
-        let r = await fetch('/api/admin/start-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
-        let d = await r.json();
-        alert(d.message);
-        refreshStats();
+        try {
+            const res = await fetch('/api/admin/start-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            showToast(data.message, data.success ? 'success' : 'error');
+            refreshData();
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     async function forceEndGame() {
-        if (confirm('Force end current game?')) {
-            let r = await fetch('/api/admin/end-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
-            alert((await r.json()).message);
-            refreshStats();
-        }
+        if (!confirm('Force end current game?')) return;
+        try {
+            const res = await fetch('/api/admin/end-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            showToast(data.message || 'Game ended', 'success');
+            refreshData();
+        } catch (e) { showToast('Error', 'error'); }
     }
 
     async function resetGame() {
-        if (confirm('Reset all game state?')) {
+        if (!confirm('Reset all game state? This cannot be undone.')) return;
+        try {
             await fetch('/api/admin/reset-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
-            refreshStats();
+            showToast('Game reset', 'success');
+            refreshData();
+        } catch (e) { showToast('Error', 'error'); }
+    }
+
+    // ==================== REPORTS ====================
+    function toggleReportType() {
+        const type = document.getElementById('reportType').value;
+        document.getElementById('dailyFilter').style.display = type === 'daily' ? 'inline-block' : 'none';
+        document.getElementById('weeklyFilter').style.display = type === 'weekly' ? 'inline-block' : 'none';
+        document.getElementById('monthlyFilter').style.display = type === 'monthly' ? 'inline-block' : 'none';
+        document.getElementById('rangeFilter').style.display = type === 'range' ? 'inline-block' : 'none';
+        
+        const now = new Date();
+        if (type === 'daily') document.getElementById('reportDate').value = now.toISOString().split('T')[0];
+        if (type === 'weekly') { document.getElementById('reportYear').value = now.getFullYear(); document.getElementById('reportWeek').value = getWeekNumber(now); }
+        if (type === 'monthly') document.getElementById('reportMonth').value = now.toISOString().slice(0, 7);
+        if (type === 'range') {
+            const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+            document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('endDate').value = now.toISOString().split('T')[0];
         }
+    }
+
+    function getWeekNumber(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const week1 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
+    async function loadReport() {
+        const type = document.getElementById('reportType').value;
+        let url = '';
+        switch(type) {
+            case 'daily': const date = document.getElementById('reportDate').value; if (!date) return; url = `/api/reports/daily?date=${date}`; break;
+            case 'weekly': const year = document.getElementById('reportYear').value, week = document.getElementById('reportWeek').value; if (!year || !week) return; url = `/api/reports/weekly?year=${year}&week=${week}`; break;
+            case 'monthly': const month = document.getElementById('reportMonth').value; if (!month) return; const [y, m] = month.split('-'); url = `/api/reports/monthly?year=${y}&month=${m}`; break;
+            case 'range': const start = document.getElementById('startDate').value, end = document.getElementById('endDate').value; if (!start || !end) return; url = `/api/reports/range?startDate=${start}&endDate=${end}`; break;
+            case 'commission': url = `/api/reports/commission`; break;
+            default: return;
+        }
+        try {
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+            const data = await res.json();
+            if (data.success) displayReport(data.report, type);
+            else showToast('No data available', 'error');
+        } catch (e) { showToast('Error loading report', 'error'); }
+    }
+
+    function displayReport(report, type) {
+        const summaryDiv = document.getElementById('reportSummary');
+        if (type === 'commission') {
+            summaryDiv.innerHTML = `
+                <div class="stat-card"><div class="stat-value">${report.summary?.totalGames || 0}</div><div>Total Games</div></div>
+                <div class="stat-card"><div class="stat-value">${report.summary?.totalCommission || 0}</div><div>Total Commission</div></div>
+                <div class="stat-card"><div class="stat-value">${report.summary?.averageCommissionPercentage || 0}%</div><div>Avg Commission %</div></div>
+            `;
+        } else {
+            summaryDiv.innerHTML = `
+                <div class="stat-card"><div class="stat-value">${report.totalGames || 0}</div><div>Total Games</div></div>
+                <div class="stat-card"><div class="stat-value">${report.totalBet || 0}</div><div>Total Bet (ETB)</div></div>
+                <div class="stat-card"><div class="stat-value">${report.totalWon || 0}</div><div>Total Won (ETB)</div></div>
+                <div class="stat-card"><div class="stat-value">${report.totalCommission || 0}</div><div>Total Commission</div></div>
+            `;
+        }
+        const commissionData = type === 'commission' ? report.commissionByRound : (report.commissionPerRound || []);
+        const tbody = document.getElementById('commissionTableBody');
+        if (!commissionData.length) { tbody.innerHTML = '<tr><td colspan="7">No data available</td></tr>'; return; }
+        tbody.innerHTML = '';
+        commissionData.forEach(c => {
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = c.roundId || '-';
+            row.insertCell(1).textContent = c.date ? new Date(c.date).toLocaleString() : '-';
+            row.insertCell(2).textContent = (c.totalPool || 0).toFixed(2);
+            row.insertCell(3).textContent = (c.winnerReward || 0).toFixed(2);
+            row.insertCell(4).textContent = (c.adminCommission || 0).toFixed(2);
+            row.insertCell(5).textContent = c.commissionPercentage + '%';
+            row.insertCell(6).textContent = c.winners ? (Array.isArray(c.winners) ? c.winners.join(', ') : c.winners) : '-';
+        });
+    }
+
+    // ==================== SETTINGS ====================
+    function showSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
+    function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; document.getElementById('settingsError').textContent = ''; }
+
+    async function changeAdminPassword() {
+        const cur = document.getElementById('curPwd').value;
+        const newp = document.getElementById('newPwd').value;
+        const conf = document.getElementById('confPwd').value;
+        if (!cur || !newp) { document.getElementById('settingsError').textContent = 'Fill all fields'; return; }
+        if (newp !== conf) { document.getElementById('settingsError').textContent = 'Passwords do not match'; return; }
+        if (newp.length < 6) { document.getElementById('settingsError').textContent = 'Password must be 6+ characters'; return; }
+        try {
+            const res = await fetch('/api/admin/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword: cur, newPassword: newp, token: adminToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('Password changed! Please login again.');
+                adminLogout();
+            } else { document.getElementById('settingsError').textContent = data.message || 'Failed'; }
+        } catch (e) { document.getElementById('settingsError').textContent = 'Connection error'; }
     }
 
     // ==================== UI HELPERS ====================
     function showTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        if (tab === 'players') {
-            document.getElementById('playersTab').classList.add('active');
-            document.querySelectorAll('.tab-btn')[0].classList.add('active');
-            loadAllPlayers();
-        } else if (tab === 'search') {
-            document.getElementById('searchTab').classList.add('active');
-            document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        } else if (tab === 'requests') {
-            document.getElementById('requestsTab').classList.add('active');
-            document.querySelectorAll('.tab-btn')[2].classList.add('active');
-            loadBalanceRequests();
-        } else if (tab === 'registrations') {
-            document.getElementById('registrationsTab').classList.add('active');
-            document.querySelectorAll('.tab-btn')[3].classList.add('active');
-            loadPendingRegistrations();
-        } else if (tab === 'reports') {
-            document.getElementById('reportsTab').classList.add('active');
-            document.querySelectorAll('.tab-btn')[4].classList.add('active');
-            document.getElementById('reportContent').innerHTML = '<pre>Daily report: use /api/reports/daily endpoint</pre>';
-        }
+        const tabMap = { players: 'playersTab', search: 'searchTab', requests: 'requestsTab', registrations: 'registrationsTab', reports: 'reportsTab' };
+        document.getElementById(tabMap[tab]).classList.add('active');
+        event.target.classList.add('active');
+        if (tab === 'players') loadAllPlayers();
+        if (tab === 'requests') loadBalanceRequests();
+        if (tab === 'registrations') loadPendingRegistrations();
+        if (tab === 'reports') toggleReportType();
     }
 
-    function showSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
-    function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
-
-    async function changeAdminPassword() {
-        let cur = document.getElementById('curPwd').value;
-        let newp = document.getElementById('newPwd').value;
-        let conf = document.getElementById('confPwd').value;
-        if (newp !== conf) {
-            document.getElementById('settingsError').innerText = 'Passwords mismatch';
-            return;
-        }
-        let r = await fetch('/api/admin/change-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentPassword: cur, newPassword: newp, token: adminToken })
-        });
-        let d = await r.json();
-        if (d.success) {
-            alert('Password changed, please login again');
-            adminLogout();
-        } else {
-            document.getElementById('settingsError').innerText = d.message;
-        }
-    }
-
-    function startAutoRefresh() { setInterval(() => refreshStats(), 5000); }
     function showToast(msg, type) {
-        let t = document.createElement('div');
-        t.className = `toast ${type}`;
-        t.textContent = msg;
-        t.style.position = 'fixed';
-        t.style.bottom = '20px';
-        t.style.left = '50%';
-        t.style.transform = 'translateX(-50%)';
-        t.style.padding = '12px 24px';
-        t.style.borderRadius = '30px';
-        t.style.background = type === 'success' ? '#4caf50' : '#f44336';
-        t.style.color = 'white';
-        t.style.zIndex = '2000';
-        document.body.appendChild(t);
-        setTimeout(() => t.remove(), 3000);
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 
-    // Enter key search
-    document.getElementById('searchPhone')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchPlayer();
-    });
+    // Initialize date pickers
+    document.getElementById('reportDate').valueAsDate = new Date();
+    document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    document.getElementById('searchPhone').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlayer(); });
 </script>
 </body>
 </html>
