@@ -81,6 +81,8 @@
         button:hover { background: #e0b12e; }
         .btn-danger { background: #f44336; color: white; }
         .btn-danger:hover { background: #d32f2f; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-success:hover { background: #45a049; }
         
         /* Tabs */
         .tabs {
@@ -153,6 +155,33 @@
             color: white;
         }
         
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .action-btn-add {
+            background: #4caf50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .action-btn-remove {
+            background: #ff9800;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .action-btn-view {
+            background: #2196f3;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
         @media (max-width: 768px) {
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .header { flex-direction: column; text-align: center; }
@@ -220,8 +249,20 @@
                 <div class="table-container">
                     <h3>👥 Players Online</h3>
                     <table id="playersTable">
-                        <thead><tr><th>Player</th><th>Balance (ETB)</th><th>Selected</th><th>Total Won</th><th>Actions</th></tr></thead>
-                        <tbody id="playersTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Socket ID</th>
+                                <th>Balance (ETB)</th>
+                                <th>Selected Cartelas</th>
+                                <th>Total Won</th>
+                                <th>Games Won</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playersTableBody">
+                            <tr><td colspan="7">Loading...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -249,8 +290,19 @@
                     <h3 id="reportTitle">Daily Report</h3>
                     <div id="reportSummary" class="stats-grid" style="margin-bottom: 20px;"></div>
                     <table id="reportTable">
-                        <thead><tr><th>Round</th><th>Date</th><th>Players</th><th>Total Bet</th><th>Winner Reward</th><th>Commission</th></tr></thead>
-                        <tbody id="reportTableBody"><tr><td colspan="6">Select a report type</td></tr></tbody>
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Date</th>
+                                <th>Players</th>
+                                <th>Total Bet</th>
+                                <th>Winner Reward</th>
+                                <th>Commission</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr><td colspan="6">Select a report type</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -261,8 +313,18 @@
                     <h3>💰 Commission Summary</h3>
                     <div id="commissionSummary" class="stats-grid" style="margin-bottom: 20px;"></div>
                     <table id="commissionTable">
-                        <thead><tr><th>Round</th><th>Date</th><th>Total Pool</th><th>Commission (ETB)</th><th>Percentage</th></tr></thead>
-                        <tbody id="commissionTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Date</th>
+                                <th>Total Pool</th>
+                                <th>Commission (ETB)</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commissionTableBody">
+                            <tr><td colspan="5">Loading...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -285,10 +347,26 @@
         </div>
     </div>
     
+    <!-- Balance Modal -->
+    <div id="balanceModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="balanceModalTitle">💰 Add Balance</h3>
+            <input type="number" id="balanceAmount" placeholder="Amount (ETB)" step="1" min="1">
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="confirmAddBalance()" class="btn-success">Add Balance</button>
+                <button onclick="confirmRemoveBalance()" class="btn-danger" id="removeBalanceBtn" style="display: none;">Remove Balance</button>
+                <button onclick="closeBalanceModal()">Cancel</button>
+            </div>
+            <div id="balanceError" style="color: #ff8888; margin-top: 10px;"></div>
+        </div>
+    </div>
+    
     <script src="/socket.io/socket.io.js"></script>
     <script>
         let adminToken = localStorage.getItem('adminToken');
         let socket = null;
+        let currentPlayerSocketId = null;
+        let currentAction = 'add';
         
         // Check if already logged in
         if (adminToken) {
@@ -382,31 +460,139 @@
             const tbody = document.getElementById('playersTableBody');
             if (!tbody) return;
             if (!players || players.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5">No players online</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7">No players online</td></tr>';
                 return;
             }
             tbody.innerHTML = '';
             players.forEach(p => {
                 const row = tbody.insertRow();
                 row.insertCell(0).textContent = p.username;
-                row.insertCell(1).textContent = p.balance.toFixed(2);
-                row.insertCell(2).textContent = p.selectedCount + ' / 2';
-                row.insertCell(3).textContent = (p.totalWon || 0).toFixed(2);
-                row.insertCell(4).innerHTML = `<button onclick="addBalance('${p.socketId}')">➕ Add</button>`;
+                row.insertCell(1).textContent = p.socketId;
+                row.insertCell(2).textContent = p.balance.toFixed(2);
+                row.insertCell(3).innerHTML = p.selectedCartelas && p.selectedCartelas.length > 0 ? p.selectedCartelas.join(', ') : 'None';
+                row.insertCell(4).textContent = (p.totalWon || 0).toFixed(2);
+                row.insertCell(5).textContent = p.gamesWon || 0;
+                row.insertCell(6).innerHTML = `
+                    <div class="action-buttons">
+                        <button class="action-btn-add" onclick="showBalanceModal('${p.socketId}', 'add')">➕ Add</button>
+                        <button class="action-btn-remove" onclick="showBalanceModal('${p.socketId}', 'remove')">➖ Remove</button>
+                        <button class="action-btn-view" onclick="viewPlayerHistory('${p.socketId}')">📋 History</button>
+                    </div>
+                `;
             });
         }
         
-        async function addBalance(socketId) {
-            const amount = prompt('Enter amount to add (ETB):');
-            if (!amount || isNaN(amount)) return;
+        function showBalanceModal(socketId, action) {
+            currentPlayerSocketId = socketId;
+            currentAction = action;
+            const modal = document.getElementById('balanceModal');
+            const title = document.getElementById('balanceModalTitle');
+            const removeBtn = document.getElementById('removeBalanceBtn');
+            const balanceAmount = document.getElementById('balanceAmount');
+            
+            balanceAmount.value = '';
+            document.getElementById('balanceError').textContent = '';
+            
+            if (action === 'add') {
+                title.innerHTML = '💰 Add Balance';
+                removeBtn.style.display = 'none';
+            } else {
+                title.innerHTML = '➖ Remove Balance';
+                removeBtn.style.display = 'inline-block';
+            }
+            
+            modal.style.display = 'flex';
+        }
+        
+        function closeBalanceModal() {
+            document.getElementById('balanceModal').style.display = 'none';
+            currentPlayerSocketId = null;
+            document.getElementById('balanceAmount').value = '';
+        }
+        
+        async function confirmAddBalance() {
+            const amount = parseFloat(document.getElementById('balanceAmount').value);
+            const errorDiv = document.getElementById('balanceError');
+            
+            if (!amount || isNaN(amount) || amount <= 0) {
+                errorDiv.textContent = 'Please enter a valid positive amount';
+                return;
+            }
+            
             try {
-                await fetch('/api/admin/add-balance', {
+                const response = await fetch('/api/admin/add-balance', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-                    body: JSON.stringify({ socketId, amount: parseFloat(amount) })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({ socketId: currentPlayerSocketId, amount: amount })
                 });
-                refreshData();
-            } catch (err) { alert('Error adding balance'); }
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Successfully added ${amount} ETB! New balance: ${data.newBalance.toFixed(2)} ETB`);
+                    closeBalanceModal();
+                    refreshData();
+                } else {
+                    errorDiv.textContent = data.message || 'Failed to add balance';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Connection error';
+            }
+        }
+        
+        async function confirmRemoveBalance() {
+            const amount = parseFloat(document.getElementById('balanceAmount').value);
+            const errorDiv = document.getElementById('balanceError');
+            
+            if (!amount || isNaN(amount) || amount <= 0) {
+                errorDiv.textContent = 'Please enter a valid positive amount';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/remove-balance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({ socketId: currentPlayerSocketId, amount: amount })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Successfully removed ${amount} ETB! New balance: ${data.newBalance.toFixed(2)} ETB`);
+                    closeBalanceModal();
+                    refreshData();
+                } else {
+                    errorDiv.textContent = data.message || 'Failed to remove balance';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Connection error';
+            }
+        }
+        
+        async function viewPlayerHistory(socketId) {
+            try {
+                const response = await fetch(`/api/admin/player-transactions/${socketId}`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.success && data.transactions.length > 0) {
+                    let historyText = '📜 Transaction History:\n\n';
+                    data.transactions.slice(-10).forEach(t => {
+                        historyText += `${new Date(t.timestamp).toLocaleString()} - ${t.type.toUpperCase()}: ${t.amount} ETB\n`;
+                    });
+                    alert(historyText);
+                } else {
+                    alert('No transactions found for this player');
+                }
+            } catch (err) {
+                alert('Error loading transaction history');
+            }
         }
         
         async function updateWinPercentage() {
@@ -432,16 +618,18 @@
         }
         
         async function forceEndGame() {
-            try {
-                const res = await fetch('/api/admin/end-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
-                const data = await res.json();
-                alert(data.message);
-                refreshData();
-            } catch (err) { alert('Error'); }
+            if (confirm('Are you sure you want to force end the current game? Winners will be determined based on current draws.')) {
+                try {
+                    const res = await fetch('/api/admin/end-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
+                    const data = await res.json();
+                    alert(data.message);
+                    refreshData();
+                } catch (err) { alert('Error'); }
+            }
         }
         
         async function resetGame() {
-            if (confirm('Are you sure you want to reset the game? This will clear all current round data.')) {
+            if (confirm('⚠️ WARNING: Resetting the game will clear all current round data. This cannot be undone. Are you sure?')) {
                 try {
                     const res = await fetch('/api/admin/reset-game', { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` } });
                     const data = await res.json();
@@ -610,8 +798,8 @@
         }
         
         // Initialize date pickers
-        document.getElementById('reportDate').valueAsDate = new Date();
         const today = new Date();
+        document.getElementById('reportDate').valueAsDate = today;
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
         document.getElementById('startDate').valueAsDate = weekAgo;

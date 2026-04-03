@@ -34,6 +34,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .logo {
@@ -105,6 +107,7 @@
         .status-badge.selection { background: #2196f3; }
         .status-badge.active { background: #4caf50; }
         .status-badge.ended { background: #9c27b0; }
+        .status-badge.watching { background: #ff9800; }
         
         .called-numbers {
             display: flex;
@@ -136,6 +139,7 @@
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 20px;
+            margin-bottom: 20px;
         }
         
         .section-title {
@@ -193,13 +197,19 @@
             pointer-events: none;
         }
         
+        .cartela-item.insufficient {
+            background: #8b0000;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
         /* Bingo Card Display (5x5 Grid) */
         .bingo-card-section {
             background: rgba(15, 62, 42, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 20px;
-            margin-top: 20px;
+            margin-bottom: 20px;
         }
         
         .bingo-header {
@@ -260,6 +270,86 @@
             animation: pulse 0.5s infinite;
         }
         
+        /* Selected Cartelas List */
+        .selected-cartelas-list {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .selected-card {
+            background: #2a5a3e;
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            min-width: 120px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .selected-card:hover {
+            background: #3a6a4e;
+        }
+        
+        .selected-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #f5c542;
+        }
+        
+        .remove-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+        }
+        
+        .view-card-btn {
+            background: #f5c542;
+            color: #1a472a;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-top: 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        /* Watch Only Section */
+        .watch-only-section {
+            background: rgba(15, 62, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .watch-only-badge {
+            background: #ff9800;
+            color: #1a472a;
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .watch-only-message {
+            color: #ffaa88;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
         /* Winner Overlay */
         .winner-overlay {
             position: fixed;
@@ -314,59 +404,6 @@
             font-size: 14px;
         }
         
-        /* Selected Cartelas List */
-        .selected-cartelas-list {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-        
-        .selected-card {
-            background: #2a5a3e;
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            min-width: 120px;
-            position: relative;
-            cursor: pointer;
-        }
-        
-        .selected-card:hover {
-            background: #3a6a4e;
-        }
-        
-        .selected-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: #f5c542;
-        }
-        
-        .remove-btn {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            cursor: pointer;
-        }
-        
-        .view-card-btn {
-            background: #f5c542;
-            color: #1a472a;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            margin-top: 8px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
         /* Toast */
         .toast {
             position: fixed;
@@ -384,6 +421,7 @@
         .toast.success { background: #4caf50; }
         .toast.error { background: #f44336; }
         .toast.warning { background: #ff9800; }
+        .toast.info { background: #2196f3; }
         
         .footer {
             text-align: center;
@@ -394,7 +432,7 @@
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            50% { opacity: 0.6; }
         }
         
         @keyframes popIn {
@@ -451,21 +489,25 @@
                 <span>Balance: <strong id="balanceDisplay">0</strong> ETB</span>
             </div>
             <div class="cartela-grid" id="cartelaGrid"></div>
-        </div>
-        
-        <!-- Selected Cartelas Section (After Game Starts) -->
-        <div class="cartela-section" id="selectedSection" style="display: none;">
-            <div class="section-title">
-                <h3>🎯 YOUR SELECTED CARTELAS</h3>
-                <p>Click on any cartela to view your BINGO card</p>
+            <div id="insufficientBalanceMsg" style="text-align: center; margin-top: 15px; color: #ffaa88; display: none;">
+                ⚠️ Insufficient balance! You can watch the game in "Watch Only" mode.
             </div>
-            <div class="selected-cartelas-list" id="selectedCartelasList"></div>
         </div>
         
-        <!-- Bingo Card Display (Shows when a cartela is clicked during game) -->
+        <!-- Watch Only Section (For players with insufficient balance) -->
+        <div class="watch-only-section" id="watchOnlySection" style="display: none;">
+            <div class="watch-only-badge">👁️ WATCHING ONLY</div>
+            <div class="watch-only-message">
+                You have insufficient balance to select cartelas.<br>
+                Watch the game and see the numbers being called!
+            </div>
+            <button onclick="enableWatchOnlyMode()" class="btn-watch">🎯 Continue Watching</button>
+        </div>
+        
+        <!-- Bingo Card Display (Shows during active game) -->
         <div class="bingo-card-section" id="bingoCardSection" style="display: none;">
             <div class="section-title">
-                <h3 id="bingoCardTitle">🎯 Cartela #--- BINGO Card</h3>
+                <h3 id="bingoCardTitle">🎯 Your BINGO Card</h3>
             </div>
             <div class="bingo-header">
                 <div class="bingo-letter B">B</div>
@@ -476,6 +518,15 @@
             </div>
             <div class="bingo-grid" id="bingoGrid"></div>
             <div id="winningLines" style="margin-top: 10px; text-align: center; font-size: 14px; color: #f5c542;"></div>
+        </div>
+        
+        <!-- Selected Cartelas Section (After Game Starts - Players with selections) -->
+        <div class="cartela-section" id="selectedSection" style="display: none;">
+            <div class="section-title">
+                <h3>🎯 YOUR SELECTED CARTELAS</h3>
+                <p>Click on any cartela to view your BINGO card</p>
+            </div>
+            <div class="selected-cartelas-list" id="selectedCartelasList"></div>
         </div>
         
         <div class="footer">
@@ -491,7 +542,8 @@
         let playerState = { balance: 0, selectedCartelas: [], username: '' };
         let cartelaElements = [];
         let currentViewingCartela = null;
-        let cartelaGrids = {};  // Store cartela grids when fetched
+        let cartelaGrids = {};
+        let isWatchOnly = false;
         
         // ==================== HELPER FUNCTIONS ====================
         function getBingoLetter(num) {
@@ -502,20 +554,9 @@
             return "O";
         }
         
-        // Load cartela grid from server (in production, you'd have this data locally)
-        async function loadCartelaGrid(cartelaId) {
-            if (cartelaGrids[cartelaId]) return cartelaGrids[cartelaId];
-            
-            // For now, generate a random valid bingo card
-            // In production, load from your CSV data
-            const grid = generateRandomBingoCard();
-            cartelaGrids[cartelaId] = grid;
-            return grid;
-        }
-        
-        // Generate a random valid bingo card (B:1-15, I:16-30, N:31-45 with FREE, G:46-60, O:61-75)
+        // Generate a random valid bingo card
         function generateRandomBingoCard() {
-            function getRandomNumbers(min, max, count, excludeFree = false) {
+            function getRandomNumbers(min, max, count) {
                 const numbers = [];
                 const available = [];
                 for (let i = min; i <= max; i++) available.push(i);
@@ -533,7 +574,6 @@
             const gNumbers = getRandomNumbers(46, 60, 5);
             const oNumbers = getRandomNumbers(61, 75, 5);
             
-            // Set FREE space in center (row 2, col 2)
             nNumbers[2] = "FREE";
             
             return [
@@ -545,7 +585,25 @@
             ];
         }
         
-        // Check for BINGO wins
+        async function loadCartelaGrid(cartelaId) {
+            if (cartelaGrids[cartelaId]) return cartelaGrids[cartelaId];
+            
+            try {
+                const response = await fetch(`/api/cartela/${cartelaId}`);
+                const data = await response.json();
+                if (data.success) {
+                    cartelaGrids[cartelaId] = data.grid;
+                    return data.grid;
+                }
+            } catch (err) {
+                console.log("Using generated card for cartela", cartelaId);
+            }
+            
+            const grid = generateRandomBingoCard();
+            cartelaGrids[cartelaId] = grid;
+            return grid;
+        }
+        
         function checkBingoWin(cartelaId, drawnNumbers) {
             const grid = cartelaGrids[cartelaId];
             if (!grid) return { won: false, winningLines: [] };
@@ -555,14 +613,12 @@
             
             const winningLines = [];
             
-            // Check rows
             for (let row = 0; row < 5; row++) {
                 if (grid[row].every(num => drawnSet.has(num))) {
                     winningLines.push(`Row ${row + 1}`);
                 }
             }
             
-            // Check columns
             for (let col = 0; col < 5; col++) {
                 let win = true;
                 for (let row = 0; row < 5; row++) {
@@ -574,7 +630,6 @@
                 if (win) winningLines.push(`Column ${col + 1}`);
             }
             
-            // Check diagonals
             let diag1 = true, diag2 = true;
             for (let i = 0; i < 5; i++) {
                 if (!drawnSet.has(grid[i][i])) diag1 = false;
@@ -583,7 +638,6 @@
             if (diag1) winningLines.push("Diagonal (Top-Left to Bottom-Right)");
             if (diag2) winningLines.push("Diagonal (Top-Right to Bottom-Left)");
             
-            // Check four corners
             if (drawnSet.has(grid[0][0]) && drawnSet.has(grid[0][4]) &&
                 drawnSet.has(grid[4][0]) && drawnSet.has(grid[4][4])) {
                 winningLines.push("Four Corners");
@@ -592,7 +646,6 @@
             return { won: winningLines.length > 0, winningLines };
         }
         
-        // Display Bingo Card
         async function displayBingoCard(cartelaId) {
             const grid = await loadCartelaGrid(cartelaId);
             if (!grid) return;
@@ -606,12 +659,10 @@
             const drawnSet = new Set(gameState.drawnNumbers);
             drawnSet.add("FREE");
             
-            // Check winning lines
             const { won, winningLines } = checkBingoWin(cartelaId, gameState.drawnNumbers);
             const winningSet = new Set();
             
             if (won) {
-                // Mark winning cells (simplified - mark all cells in winning lines)
                 for (let row = 0; row < 5; row++) {
                     for (let col = 0; col < 5; col++) {
                         winningSet.add(`${row},${col}`);
@@ -665,13 +716,17 @@
                     gameState = data.gameState;
                     updateGameDisplay();
                 }
+                
+                // Check if player has insufficient balance for cartela selection
+                if (playerState.balance < 10 && (gameState.status === 'selection' || gameState.status === 'countdown')) {
+                    document.getElementById('insufficientBalanceMsg').style.display = 'block';
+                }
             });
             
             socket.on('gameState', (state) => {
                 gameState = state;
                 updateGameDisplay();
                 
-                // Refresh bingo card if viewing one
                 if (currentViewingCartela) {
                     displayBingoCard(currentViewingCartela);
                 }
@@ -699,15 +754,13 @@
                 addCalledNumber(data.number);
                 playSound(data.number);
                 
-                // Refresh bingo card if viewing one
                 if (currentViewingCartela) {
                     await displayBingoCard(currentViewingCartela);
                 }
                 
-                // Check if current viewing cartela won
                 if (currentViewingCartela) {
                     const { won, winningLines } = checkBingoWin(currentViewingCartela, gameState.drawnNumbers);
-                    if (won) {
+                    if (won && !isWatchOnly) {
                         showWinnerOverlay(currentViewingCartela, winningLines, 0);
                         playWinSound();
                     }
@@ -716,13 +769,12 @@
             
             socket.on('selectionConfirmed', (data) => {
                 playerState.balance = data.balance;
+                playerState.selectedCartelas = data.selectedCartelas || playerState.selectedCartelas;
                 playerState.selectedCartelas.push(data.cartela);
                 updateBalanceDisplay();
                 updateSelectedCount(playerState.selectedCartelas.length);
                 showToast(data.message, 'success');
                 updateCartelaHighlight(data.cartela, true);
-                
-                // Load cartela grid for future use
                 loadCartelaGrid(data.cartela);
             });
             
@@ -738,8 +790,7 @@
                 gameState.status = 'ended';
                 updateGameDisplay();
                 
-                // Show winner announcement if this player won
-                if (data.winners && data.winners.includes(playerState.username)) {
+                if (data.winners && data.winners.includes(playerState.username) && !isWatchOnly) {
                     showWinnerOverlay(null, null, data.winnerReward);
                     playWinSound();
                 } else if (data.winners && data.winners.length > 0) {
@@ -763,6 +814,11 @@
                 document.getElementById('calledNumbers').innerHTML = '';
                 document.getElementById('bingoCardSection').style.display = 'none';
                 currentViewingCartela = null;
+                isWatchOnly = false;
+                
+                if (playerState.balance < 10) {
+                    document.getElementById('insufficientBalanceMsg').style.display = 'block';
+                }
             });
             
             socket.on('youWon', (data) => {
@@ -779,6 +835,13 @@
         
         // ==================== UI FUNCTIONS ====================
         
+        function enableWatchOnlyMode() {
+            isWatchOnly = true;
+            document.getElementById('watchOnlySection').style.display = 'none';
+            document.getElementById('cartelaSection').style.display = 'none';
+            showToast('You are now in Watch Only mode. Enjoy the game!', 'info');
+        }
+        
         function createCartelaGrid() {
             const grid = document.getElementById('cartelaGrid');
             grid.innerHTML = '';
@@ -789,13 +852,25 @@
                 cell.className = 'cartela-item';
                 cell.textContent = i;
                 cell.dataset.number = i;
-                cell.onclick = () => selectCartela(i);
+                
+                if (playerState.balance < 10) {
+                    cell.classList.add('insufficient');
+                    cell.onclick = () => showToast('Insufficient balance! Use Watch Only mode to observe the game.', 'warning');
+                } else {
+                    cell.onclick = () => selectCartela(i);
+                }
+                
                 grid.appendChild(cell);
                 cartelaElements.push(cell);
             }
         }
         
         function selectCartela(number) {
+            if (isWatchOnly) {
+                showToast('You are in Watch Only mode. Cannot select cartelas.', 'warning');
+                return;
+            }
+            
             if (gameState.status !== 'selection') {
                 showToast('Cannot select now. Game already started!', 'error');
                 return;
@@ -810,10 +885,16 @@
                 }
                 if (playerState.balance < 10) {
                     showToast(`Insufficient balance! Need 10 ETB. You have ${playerState.balance} ETB.`, 'error');
+                    showWatchOnlyOption();
                     return;
                 }
                 socket.emit('selectCartela', { cartelaNumber: number });
             }
+        }
+        
+        function showWatchOnlyOption() {
+            document.getElementById('watchOnlySection').style.display = 'block';
+            document.getElementById('cartelaSection').style.display = 'none';
         }
         
         function updateCartelaHighlight(number, isSelected) {
@@ -878,23 +959,40 @@
             
             if (roundEl) roundEl.textContent = `Round ${gameState.round}`;
             if (statusEl) {
-                statusEl.textContent = gameState.status === 'selection' ? '🎲 SELECT CARTELAS' : 
-                                       gameState.status === 'active' ? '🎯 GAME IN PROGRESS' : '🏆 ROUND ENDED';
-                statusEl.className = `status-badge ${gameState.status}`;
+                if (isWatchOnly) {
+                    statusEl.textContent = '👁️ WATCHING ONLY';
+                    statusEl.className = 'status-badge watching';
+                } else {
+                    statusEl.textContent = gameState.status === 'selection' ? '🎲 SELECT CARTELAS' : 
+                                           gameState.status === 'active' ? '🎯 GAME IN PROGRESS' : '🏆 ROUND ENDED';
+                    statusEl.className = `status-badge ${gameState.status}`;
+                }
             }
             
             updateTimerDisplay(gameState.timer);
             updateCalledNumbers(gameState.drawnNumbers);
             
-            if (gameState.status === 'selection') {
+            if (gameState.status === 'selection' && !isWatchOnly && playerState.balance >= 10) {
                 cartelaSection.style.display = 'block';
                 selectedSection.style.display = 'none';
                 document.getElementById('bingoCardSection').style.display = 'none';
+                document.getElementById('watchOnlySection').style.display = 'none';
                 enableCartelaSelection(true);
+            } else if (gameState.status === 'selection' && (isWatchOnly || playerState.balance < 10)) {
+                cartelaSection.style.display = 'none';
+                selectedSection.style.display = 'none';
+                document.getElementById('watchOnlySection').style.display = 'block';
+                enableCartelaSelection(false);
             } else if (gameState.status === 'active') {
                 cartelaSection.style.display = 'none';
-                selectedSection.style.display = 'block';
-                updateSelectedDisplay();
+                selectedSection.style.display = !isWatchOnly && playerState.selectedCartelas.length > 0 ? 'block' : 'none';
+                document.getElementById('watchOnlySection').style.display = 'none';
+                document.getElementById('bingoCardSection').style.display = 'block';
+                if (!isWatchOnly && playerState.selectedCartelas.length > 0 && currentViewingCartela === null && playerState.selectedCartelas[0]) {
+                    viewCartelaCard(playerState.selectedCartelas[0]);
+                } else if (isWatchOnly && currentViewingCartela === null) {
+                    viewCartelaCard(1);
+                }
                 enableCartelaSelection(false);
             } else {
                 cartelaSection.style.display = 'block';
@@ -943,6 +1041,12 @@
             const balanceDisplay = document.getElementById('balanceDisplay');
             if (balanceEl) balanceEl.textContent = playerState.balance.toFixed(2);
             if (balanceDisplay) balanceDisplay.textContent = playerState.balance.toFixed(2);
+            
+            if (playerState.balance < 10 && gameState.status === 'selection') {
+                document.getElementById('insufficientBalanceMsg').style.display = 'block';
+            } else {
+                document.getElementById('insufficientBalanceMsg').style.display = 'none';
+            }
         }
         
         function updateSelectedCount(count) {
@@ -952,8 +1056,11 @@
         
         function enableCartelaSelection(enable) {
             cartelaElements.forEach(cell => {
-                if (enable) cell.classList.remove('disabled');
-                else cell.classList.add('disabled');
+                if (enable && !cell.classList.contains('insufficient')) {
+                    cell.classList.remove('disabled');
+                } else {
+                    cell.classList.add('disabled');
+                }
             });
         }
         
@@ -962,7 +1069,7 @@
             const selectedSection = document.getElementById('selectedSection');
             if (cartelaSection) cartelaSection.style.display = show ? 'block' : 'none';
             if (selectedSection) selectedSection.style.display = show ? 'none' : 'block';
-            if (!show) {
+            if (!show && !isWatchOnly && playerState.selectedCartelas.length > 0) {
                 updateSelectedDisplay();
             }
         }
@@ -1022,9 +1129,9 @@
             createCartelaGrid();
         });
         
-        // Make functions global for onclick handlers
         window.deselectCartela = deselectCartela;
         window.viewCartelaCard = viewCartelaCard;
+        window.enableWatchOnlyMode = enableWatchOnlyMode;
     </script>
 </body>
 </html>
