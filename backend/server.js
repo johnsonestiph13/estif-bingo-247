@@ -3,6 +3,8 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const app = express();
@@ -20,24 +22,66 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "../public")));
 
-// ==================== GAME CONSTANTS ====================
-const SELECTION_TIME = 50;        // seconds to select cartelas
-const DRAW_INTERVAL = 4000;       // milliseconds between number draws
-const NEXT_ROUND_DELAY = 6000;    // milliseconds before next round
-const BET_AMOUNT = 10;            // ETB per cartela
-const WIN_PERCENTAGE = 75;        // % of pool to winners
-const MAX_CARTELAS = 2;           // max cartelas per player
+// ==================== DATABASE (In-Memory with Persistence) ====================
+// For production, replace with PostgreSQL. This works for demo.
+const fs = require('fs');
+const DATA_FILE = path.join(__dirname, '../data/game-data.json');
 
-// ==================== GAME STATE (24/7 Continuous) ====================
+// Ensure data directory exists
+if (!fs.existsSync(path.join(__dirname, '../data'))) {
+    fs.mkdirSync(path.join(__dirname, '../data'), { recursive: true });
+}
+
+// Load or initialize data
+let gameData = {
+    users: [],
+    gameRounds: [],
+    transactions: [],
+    reports: []
+};
+
+try {
+    if (fs.existsSync(DATA_FILE)) {
+        const loaded = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        gameData = { ...gameData, ...loaded };
+        console.log("✅ Loaded existing game data");
+    }
+} catch (err) {
+    console.log("⚠️ No existing data found, starting fresh");
+}
+
+// Save data function
+function saveData() {
+    try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(gameData, null, 2));
+    } catch (err) {
+        console.error("Error saving data:", err);
+    }
+}
+
+// ==================== GAME CONSTANTS ====================
+const SELECTION_TIME = 50;
+const DRAW_INTERVAL = 4000;
+const NEXT_ROUND_DELAY = 6000;
+const BET_AMOUNT = 10;
+const WIN_PERCENTAGES = [70, 75, 76, 80];
+const DEFAULT_WIN_PERCENTAGE = 75;
+const MAX_CARTELAS = 2;
+
+// ==================== GAME STATE ====================
 let gameState = {
-    status: 'selection',     // selection, active, ended
+    status: 'selection',
     round: 1,
     timer: SELECTION_TIME,
     drawnNumbers: [],
     winners: [],
-    players: new Map(),      // socketId -> player object
+    players: new Map(),
     totalBet: 0,
-    winnerReward: 0
+    winnerReward: 0,
+    adminCommission: 0,
+    winPercentage: DEFAULT_WIN_PERCENTAGE,
+    roundStartTime: null,
+    roundEndTime: null
 };
 
 // Timers
@@ -45,9 +89,11 @@ let selectionTimer = null;
 let drawTimer = null;
 let nextRoundTimer = null;
 
+// Admin sessions (simple token storage)
+let adminTokens = new Map();
+
 // ==================== HELPER FUNCTIONS ====================
 
-// Get BINGO letter for a number (1-75)
 function getBingoLetter(num) {
     if (num <= 15) return "B";
     if (num <= 30) return "I";
@@ -56,26 +102,12 @@ function getBingoLetter(num) {
     return "O";
 }
 
-// Get column color class
-function getColumnColor(letter) {
-    const colors = {
-        'B': '#ff6b6b',
-        'I': '#4ecdc4',
-        'N': '#ffe66d',
-        'G': '#95e77e',
-        'O': '#ff9f43'
-    };
-    return colors[letter] || '#ffffff';
-}
-
-// Format time (seconds to MM:SS)
 function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Broadcast game state to all connected clients
 function broadcastGameState() {
     const playersList = Array.from(gameState.players.values()).map(p => ({
         username: p.username,
@@ -89,11 +121,11 @@ function broadcastGameState() {
         timer: gameState.timer,
         drawnNumbers: gameState.drawnNumbers,
         playersCount: gameState.players.size,
-        players: playersList
+        players: playersList,
+        winPercentage: gameState.winPercentage
     });
 }
 
-// Broadcast timer update
 function broadcastTimer() {
     io.emit('timerUpdate', {
         seconds: gameState.timer,
@@ -102,14 +134,130 @@ function broadcastTimer() {
     });
 }
 
+// Calculate rewards based on win percentage
+function calculateRewards(totalPlayers, totalCartelas, winPercentage) {
+    const totalPool = totalCartelas * BET_AMOUNT;
+    const winnerReward = (totalPool * winPercentage) / 100;
+    const adminCommission = totalPool - winnerReward;
+    return { totalPool, winnerReward, adminCommission };
+}
+
+// Save round to history
+function saveRoundToHistory(roundData) {
+    gameData.gameRounds.push({
+        roundId: gameState.round,
+        ...roundData,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 1000 rounds
+    if (gameData.gameRounds.length > 1000) {
+        gameData.gameRounds = gameData.gameRounds.slice(-1000);
+    }
+    
+    saveData();
+}
+
+// Generate daily report
+function generateDailyReport(date) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const rounds = gameData.gameRounds.filter(r => r.timestamp?.startsWith(targetDate));
+    
+    const totalGames = rounds.length;
+    const totalBet = rounds.reduce((sum, r) => sum + (r.totalPool || 0), 0);
+    const totalWon = rounds.reduce((sum, r) => sum + (r.winnerReward || 0), 0);
+    const totalCommission = rounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
+    const totalPlayers = rounds.reduce((sum, r) => sum + (r.totalPlayers || 0), 0);
+    
+    return {
+        date: targetDate,
+        totalGames,
+        totalBet,
+        totalWon,
+        totalCommission,
+        totalPlayers,
+        rounds: rounds.map(r => ({
+            roundId: r.roundId,
+            totalPlayers: r.totalPlayers,
+            totalBet: r.totalPool,
+            winnerReward: r.winnerReward,
+            adminCommission: r.adminCommission,
+            winners: r.winners,
+            winPercentage: r.winPercentage
+        }))
+    };
+}
+
+// Generate weekly report
+function generateWeeklyReport(year, week) {
+    const now = new Date();
+    const targetYear = year || now.getFullYear();
+    const targetWeek = week || getWeekNumber(now);
+    
+    const rounds = gameData.gameRounds.filter(r => {
+        const date = new Date(r.timestamp);
+        return getWeekNumber(date) === targetWeek && date.getFullYear() === targetYear;
+    });
+    
+    const totalGames = rounds.length;
+    const totalBet = rounds.reduce((sum, r) => sum + (r.totalPool || 0), 0);
+    const totalWon = rounds.reduce((sum, r) => sum + (r.winnerReward || 0), 0);
+    const totalCommission = rounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
+    
+    return {
+        year: targetYear,
+        week: targetWeek,
+        totalGames,
+        totalBet,
+        totalWon,
+        totalCommission,
+        rounds
+    };
+}
+
+// Generate monthly report
+function generateMonthlyReport(year, month) {
+    const targetYear = year || new Date().getFullYear();
+    const targetMonth = month || new Date().getMonth() + 1;
+    
+    const rounds = gameData.gameRounds.filter(r => {
+        const date = new Date(r.timestamp);
+        return date.getFullYear() === targetYear && (date.getMonth() + 1) === targetMonth;
+    });
+    
+    const totalGames = rounds.length;
+    const totalBet = rounds.reduce((sum, r) => sum + (r.totalPool || 0), 0);
+    const totalWon = rounds.reduce((sum, r) => sum + (r.winnerReward || 0), 0);
+    const totalCommission = rounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
+    
+    return {
+        year: targetYear,
+        month: targetMonth,
+        totalGames,
+        totalBet,
+        totalWon,
+        totalCommission,
+        rounds
+    };
+}
+
+// Get week number
+function getWeekNumber(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
 // ==================== GAME CORE FUNCTIONS ====================
 
-// Start the selection timer (50 seconds)
 function startSelectionTimer() {
     if (selectionTimer) clearInterval(selectionTimer);
     
     gameState.status = 'selection';
     gameState.timer = SELECTION_TIME;
+    gameState.roundStartTime = new Date();
     
     broadcastGameState();
     broadcastTimer();
@@ -124,12 +272,10 @@ function startSelectionTimer() {
         gameState.timer--;
         broadcastTimer();
         
-        // Warning when 10 seconds left
         if (gameState.timer === 10) {
             io.emit('warning', { message: '⚠️ Only 10 seconds left to select cartelas!', type: 'warning' });
         }
         
-        // Time's up - start the game
         if (gameState.timer <= 0) {
             clearInterval(selectionTimer);
             selectionTimer = null;
@@ -138,13 +284,11 @@ function startSelectionTimer() {
     }, 1000);
 }
 
-// Start the active game (drawing numbers)
 function startActiveGame() {
     gameState.status = 'active';
     gameState.drawnNumbers = [];
     gameState.winners = [];
     
-    // Calculate total bets
     let totalPlayers = 0;
     let totalCartelas = 0;
     
@@ -155,8 +299,13 @@ function startActiveGame() {
         }
     }
     
-    gameState.totalBet = totalCartelas * BET_AMOUNT;
-    gameState.winnerReward = (gameState.totalBet * WIN_PERCENTAGE) / 100;
+    const { totalPool, winnerReward, adminCommission } = calculateRewards(
+        totalPlayers, totalCartelas, gameState.winPercentage
+    );
+    
+    gameState.totalBet = totalPool;
+    gameState.winnerReward = winnerReward;
+    gameState.adminCommission = adminCommission;
     
     broadcastGameState();
     io.emit('gameStarted', {
@@ -165,7 +314,8 @@ function startActiveGame() {
         totalCartelas,
         totalBet: gameState.totalBet,
         winnerReward: gameState.winnerReward,
-        message: `🎲 Game started! ${totalPlayers} players, ${totalCartelas} cartelas. Total pool: ${gameState.totalBet} ETB`
+        winPercentage: gameState.winPercentage,
+        message: `🎲 Game started! ${totalPlayers} players, ${totalCartelas} cartelas. Win: ${gameState.winPercentage}% of ${gameState.totalBet} ETB pool`
     });
     
     // Create shuffled numbers 1-75
@@ -185,7 +335,6 @@ function startActiveGame() {
         }
         
         if (index >= numbers.length) {
-            // No more numbers - end round with no winners
             endRound([]);
             return;
         }
@@ -194,7 +343,6 @@ function startActiveGame() {
         gameState.drawnNumbers.push(number);
         const letter = getBingoLetter(number);
         
-        // Emit the drawn number with audio trigger
         io.emit('numberDrawn', {
             number,
             letter,
@@ -204,31 +352,26 @@ function startActiveGame() {
         
         broadcastGameState();
         
-        // Check for winners (simplified - players win if any of their cartelas match the drawn number)
-        // In a full implementation, you'd check the actual cartela grid
+        // Check for winners
         const newWinners = [];
         
         for (const [socketId, player] of gameState.players) {
             if (player.selectedCartelas.length > 0 && 
                 !gameState.winners.includes(socketId)) {
-                // For now, any player with selected cartelas wins when a number is drawn
-                // In production, check if the drawn number is in their cartela grid
+                // Simplified win detection - in production, check actual cartela grid
                 newWinners.push(socketId);
             }
         }
         
         if (newWinners.length > 0 && gameState.winners.length === 0) {
-            // First winners of the round
             endRound(newWinners);
         }
     }, DRAW_INTERVAL);
 }
 
-// End the round and distribute rewards
 function endRound(winnerSocketIds) {
     if (gameState.status !== 'active') return;
     
-    // Stop draw timer
     if (drawTimer) {
         clearInterval(drawTimer);
         drawTimer = null;
@@ -236,12 +379,11 @@ function endRound(winnerSocketIds) {
     
     gameState.status = 'ended';
     gameState.winners = winnerSocketIds;
+    gameState.roundEndTime = new Date();
     
-    // Calculate rewards
     const winnerCount = winnerSocketIds.length;
     const perWinnerReward = winnerCount > 0 ? gameState.winnerReward / winnerCount : 0;
     
-    // Update winner balances
     const winnerNames = [];
     for (const socketId of winnerSocketIds) {
         const player = gameState.players.get(socketId);
@@ -251,28 +393,53 @@ function endRound(winnerSocketIds) {
             player.gamesWon = (player.gamesWon || 0) + 1;
             winnerNames.push(player.username);
             
-            // Notify individual winner
             io.to(socketId).emit('youWon', {
                 amount: perWinnerReward,
                 message: `🎉 Congratulations! You won ${perWinnerReward.toFixed(2)} ETB!`
             });
+            
+            // Record transaction
+            gameData.transactions.push({
+                userId: socketId,
+                username: player.username,
+                type: 'win',
+                amount: perWinnerReward,
+                round: gameState.round,
+                timestamp: new Date().toISOString()
+            });
         }
     }
     
-    // Update total played for all players
+    // Update total played
     for (const [socketId, player] of gameState.players) {
         if (player.selectedCartelas.length > 0) {
             player.totalPlayed = (player.totalPlayed || 0) + 1;
         }
     }
     
-    // Broadcast round end
+    // Save round to history
+    saveRoundToHistory({
+        roundId: gameState.round,
+        totalPlayers: Array.from(gameState.players.values()).filter(p => p.selectedCartelas.length > 0).length,
+        totalCartelas: Array.from(gameState.players.values()).reduce((sum, p) => sum + p.selectedCartelas.length, 0),
+        totalPool: gameState.totalBet,
+        winnerReward: gameState.winnerReward,
+        adminCommission: gameState.adminCommission,
+        winners: winnerNames,
+        winnerCount,
+        perWinnerReward,
+        winPercentage: gameState.winPercentage,
+        startTime: gameState.roundStartTime,
+        endTime: gameState.roundEndTime
+    });
+    
     io.emit('roundEnded', {
         winners: winnerNames,
         winnerCount,
         winnerReward: perWinnerReward,
         totalPool: gameState.totalBet,
-        adminCommission: gameState.totalBet - gameState.winnerReward,
+        adminCommission: gameState.adminCommission,
+        winPercentage: gameState.winPercentage,
         round: gameState.round,
         message: winnerCount > 0 
             ? `🎉 BINGO! Winners: ${winnerNames.join(', ')}. Each wins ${perWinnerReward.toFixed(2)} ETB!`
@@ -280,24 +447,17 @@ function endRound(winnerSocketIds) {
     });
     
     broadcastGameState();
-    
-    // Schedule next round
     scheduleNextRound();
 }
 
-// Schedule the next round
 function scheduleNextRound() {
     if (nextRoundTimer) clearTimeout(nextRoundTimer);
     
     let countdown = NEXT_ROUND_DELAY / 1000;
-    
     const countdownInterval = setInterval(() => {
         io.emit('nextRoundCountdown', { seconds: countdown });
         countdown--;
-        
-        if (countdown < 0) {
-            clearInterval(countdownInterval);
-        }
+        if (countdown < 0) clearInterval(countdownInterval);
     }, 1000);
     
     nextRoundTimer = setTimeout(() => {
@@ -306,9 +466,7 @@ function scheduleNextRound() {
     }, NEXT_ROUND_DELAY);
 }
 
-// Reset for next round
 function resetForNextRound() {
-    // Clear all player selections for next round
     for (const [socketId, player] of gameState.players) {
         player.selectedCartelas = [];
     }
@@ -320,6 +478,7 @@ function resetForNextRound() {
     gameState.winners = [];
     gameState.totalBet = 0;
     gameState.winnerReward = 0;
+    gameState.adminCommission = 0;
     
     broadcastGameState();
     broadcastTimer();
@@ -330,258 +489,71 @@ function resetForNextRound() {
         message: `🎲 Round ${gameState.round} starting! Select up to ${MAX_CARTELAS} cartelas within ${SELECTION_TIME} seconds.`
     });
     
-    // Start the selection timer again
     startSelectionTimer();
 }
 
-// ==================== SOCKET.IO CONNECTION HANDLER ====================
-io.on("connection", (socket) => {
-    console.log(`🟢 Player connected: ${socket.id}`);
+// ==================== ADMIN AUTHENTICATION ====================
+const ADMIN_EMAIL = "johnsonestiph13@gmail.com";
+let ADMIN_PASSWORD_HASH = null;
+
+// Initialize admin password
+(async () => {
+    ADMIN_PASSWORD_HASH = await bcrypt.hash("Jon@2127", 10);
+    console.log("✅ Admin password initialized");
+})();
+
+// Admin login endpoint
+app.post("/api/admin/login", async (req, res) => {
+    const { email, password } = req.body;
     
-    // Generate a default username
-    const defaultUsername = `Player_${socket.id.slice(-4)}`;
+    if (email !== ADMIN_EMAIL) {
+        return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
     
-    // Initialize player data
-    const playerData = {
-        socketId: socket.id,
-        username: defaultUsername,
-        selectedCartelas: [],
-        balance: 100,  // Starting balance
-        totalWon: 0,
-        totalPlayed: 0,
-        gamesWon: 0,
-        joinedAt: Date.now()
-    };
+    const isValid = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    if (!isValid) {
+        return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
     
-    gameState.players.set(socket.id, playerData);
+    const token = jwt.sign({ email, role: "admin" }, process.env.JWT_SECRET || "estif-secret-key", { expiresIn: "24h" });
+    adminTokens.set(token, Date.now());
     
-    // Send initial data to the new player
-    socket.emit('registered', {
-        socketId: socket.id,
-        username: defaultUsername,
-        balance: 100,
-        gameState: {
-            status: gameState.status,
-            round: gameState.round,
-            timer: gameState.timer,
-            drawnNumbers: gameState.drawnNumbers
-        }
-    });
-    
-    // Send current game state
-    socket.emit('gameState', {
-        status: gameState.status,
-        round: gameState.round,
-        timer: gameState.timer,
-        drawnNumbers: gameState.drawnNumbers,
-        playersCount: gameState.players.size
-    });
-    
-    // Send current timer
-    socket.emit('timerUpdate', {
-        seconds: gameState.timer,
-        round: gameState.round,
-        formatted: formatTime(gameState.timer)
-    });
-    
-    // Broadcast updated player count to everyone
-    io.emit('playersUpdate', {
-        count: gameState.players.size,
-        players: Array.from(gameState.players.values()).map(p => ({
-            username: p.username,
-            selectedCount: p.selectedCartelas.length,
-            balance: p.balance
-        }))
-    });
-    
-    // ========== PLAYER ACTIONS ==========
-    
-    // Change username
-    socket.on("setUsername", (data) => {
-        const player = gameState.players.get(socket.id);
-        if (player && data.username && data.username.trim().length > 0) {
-            const oldName = player.username;
-            player.username = data.username.trim().substring(0, 20);
-            
-            socket.emit('usernameChanged', { username: player.username });
-            
-            io.emit('playerUpdated', {
-                socketId: socket.id,
-                oldName: oldName,
-                newName: player.username,
-                message: `${oldName} changed name to ${player.username}`
-            });
-            
-            broadcastGameState();
-        }
-    });
-    
-    // Select cartela
-    socket.on("selectCartela", (data) => {
-        const player = gameState.players.get(socket.id);
-        if (!player) {
-            socket.emit("error", { message: "Player not found" });
-            return;
-        }
-        
-        const cartelaNumber = data.cartelaNumber;
-        
-        // Validation
-        if (gameState.status !== 'selection') {
-            socket.emit("error", { message: `Cannot select cartelas now. Game is ${gameState.status}. Please wait for next round.` });
-            return;
-        }
-        
-        if (player.selectedCartelas.length >= MAX_CARTELAS) {
-            socket.emit("error", { message: `Maximum ${MAX_CARTELAS} cartelas allowed per round!` });
-            return;
-        }
-        
-        if (player.selectedCartelas.includes(cartelaNumber)) {
-            socket.emit("error", { message: `Cartela ${cartelaNumber} already selected!` });
-            return;
-        }
-        
-        if (player.balance < BET_AMOUNT) {
-            socket.emit("error", { message: `Insufficient balance! You have ${player.balance} ETB. Need ${BET_AMOUNT} ETB per cartela.` });
-            return;
-        }
-        
-        // Deduct balance and add cartela
-        player.balance -= BET_AMOUNT;
-        player.selectedCartelas.push(cartelaNumber);
-        
-        // Confirm selection to player
-        socket.emit("selectionConfirmed", {
-            cartela: cartelaNumber,
-            selectedCount: player.selectedCartelas.length,
-            balance: player.balance,
-            remainingSlots: MAX_CARTELAS - player.selectedCartelas.length,
-            message: `✅ Cartela ${cartelaNumber} selected! ${player.selectedCartelas.length}/${MAX_CARTELAS}`
-        });
-        
-        // Broadcast to all players
-        io.emit("playerSelectionUpdate", {
-            username: player.username,
-            selectedCount: player.selectedCartelas.length,
-            message: `${player.username} selected ${player.selectedCartelas.length}/${MAX_CARTELAS} cartela(s)`
-        });
-        
-        broadcastGameState();
-        
-        // Update players list
-        io.emit('playersUpdate', {
-            count: gameState.players.size,
-            players: Array.from(gameState.players.values()).map(p => ({
-                username: p.username,
-                selectedCount: p.selectedCartelas.length,
-                balance: p.balance
-            }))
-        });
-    });
-    
-    // Deselect cartela (refund)
-    socket.on("deselectCartela", (data) => {
-        const player = gameState.players.get(socket.id);
-        if (!player) return;
-        
-        if (gameState.status !== 'selection') {
-            socket.emit("error", { message: "Cannot deselect after game started!" });
-            return;
-        }
-        
-        const cartelaNumber = data.cartelaNumber;
-        const index = player.selectedCartelas.indexOf(cartelaNumber);
-        
-        if (index !== -1) {
-            player.selectedCartelas.splice(index, 1);
-            player.balance += BET_AMOUNT;
-            
-            socket.emit("selectionUpdated", {
-                selectedCartelas: player.selectedCartelas,
-                balance: player.balance,
-                message: `Cartela ${cartelaNumber} deselected. Refunded ${BET_AMOUNT} ETB.`
-            });
-            
-            broadcastGameState();
-            
-            io.emit('playersUpdate', {
-                count: gameState.players.size,
-                players: Array.from(gameState.players.values()).map(p => ({
-                    username: p.username,
-                    selectedCount: p.selectedCartelas.length,
-                    balance: p.balance
-                }))
-            });
-        }
-    });
-    
-    // Get player status
-    socket.on("getStatus", () => {
-        const player = gameState.players.get(socket.id);
-        if (player) {
-            socket.emit("playerStatus", {
-                balance: player.balance,
-                selectedCartelas: player.selectedCartelas,
-                gameStatus: gameState.status,
-                timer: gameState.timer,
-                round: gameState.round,
-                drawnNumbers: gameState.drawnNumbers,
-                totalWon: player.totalWon,
-                totalPlayed: player.totalPlayed,
-                gamesWon: player.gamesWon
-            });
-        }
-    });
-    
-    // Get leaderboard
-    socket.on("getLeaderboard", () => {
-        const leaderboard = Array.from(gameState.players.values())
-            .sort((a, b) => (b.totalWon || 0) - (a.totalWon || 0))
-            .slice(0, 10)
-            .map((p, index) => ({
-                rank: index + 1,
-                username: p.username,
-                totalWon: p.totalWon || 0,
-                gamesWon: p.gamesWon || 0
-            }));
-        
-        socket.emit("leaderboard", { leaderboard });
-    });
-    
-    // Disconnect
-    socket.on("disconnect", () => {
-        console.log(`🔴 Player disconnected: ${socket.id}`);
-        const player = gameState.players.get(socket.id);
-        const username = player?.username || 'Unknown';
-        gameState.players.delete(socket.id);
-        
-        io.emit('playersUpdate', {
-            count: gameState.players.size,
-            players: Array.from(gameState.players.values()).map(p => ({
-                username: p.username,
-                selectedCount: p.selectedCartelas.length,
-                balance: p.balance
-            }))
-        });
-        
-        io.emit('playerLeft', {
-            username: username,
-            message: `${username} left the game`
-        });
-        
-        broadcastGameState();
-    });
+    res.json({ success: true, token, message: "Login successful" });
 });
+
+// Admin change password
+app.post("/api/admin/change-password", async (req, res) => {
+    const { currentPassword, newPassword, token } = req.body;
+    
+    if (!adminTokens.has(token)) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    
+    const isValid = await bcrypt.compare(currentPassword, ADMIN_PASSWORD_HASH);
+    if (!isValid) {
+        return res.status(401).json({ success: false, message: "Current password is incorrect" });
+    }
+    
+    ADMIN_PASSWORD_HASH = await bcrypt.hash(newPassword, 10);
+    res.json({ success: true, message: "Password changed successfully" });
+});
+
+// Admin auth middleware
+function verifyAdminToken(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token || !adminTokens.has(token)) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    next();
+}
 
 // ==================== ADMIN API ENDPOINTS ====================
 
-// Get admin statistics
-app.get("/api/admin/stats", (req, res) => {
+// Get admin stats
+app.get("/api/admin/stats", verifyAdminToken, (req, res) => {
     const players = Array.from(gameState.players.values());
     const totalBalance = players.reduce((sum, p) => sum + (p.balance || 0), 0);
     const totalSelected = players.reduce((sum, p) => sum + (p.selectedCartelas?.length || 0), 0);
-    const playersWithSelections = players.filter(p => p.selectedCartelas?.length > 0).length;
     
     res.json({
         success: true,
@@ -589,20 +561,31 @@ app.get("/api/admin/stats", (req, res) => {
         round: gameState.round,
         timer: gameState.timer,
         drawnNumbers: gameState.drawnNumbers,
-        drawnCount: gameState.drawnNumbers.length,
         playersCount: players.length,
-        playersWithSelections,
         totalBalance: totalBalance.toFixed(2),
         totalSelected,
+        winPercentage: gameState.winPercentage,
         totalBet: gameState.totalBet,
         winnerReward: gameState.winnerReward,
-        winners: gameState.winners,
-        timestamp: new Date().toISOString()
+        adminCommission: gameState.adminCommission
     });
 });
 
-// Force start game (admin)
-app.post("/api/admin/start-game", (req, res) => {
+// Update win percentage
+app.post("/api/admin/win-percentage", verifyAdminToken, (req, res) => {
+    const { percentage } = req.body;
+    
+    if (!WIN_PERCENTAGES.includes(percentage)) {
+        return res.status(400).json({ success: false, message: "Invalid percentage. Allowed: 70, 75, 76, 80" });
+    }
+    
+    gameState.winPercentage = percentage;
+    io.emit('winPercentageChanged', { percentage });
+    res.json({ success: true, message: `Win percentage updated to ${percentage}%` });
+});
+
+// Force start game
+app.post("/api/admin/start-game", verifyAdminToken, (req, res) => {
     if (gameState.status === 'selection') {
         if (selectionTimer) {
             clearInterval(selectionTimer);
@@ -615,8 +598,8 @@ app.post("/api/admin/start-game", (req, res) => {
     }
 });
 
-// Force end game (admin)
-app.post("/api/admin/end-game", (req, res) => {
+// Force end game
+app.post("/api/admin/end-game", verifyAdminToken, (req, res) => {
     if (gameState.status === 'active') {
         if (drawTimer) {
             clearInterval(drawTimer);
@@ -629,58 +612,200 @@ app.post("/api/admin/end-game", (req, res) => {
     }
 });
 
-// Reset game completely (admin)
-app.post("/api/admin/reset-game", (req, res) => {
-    // Clear all timers
+// Reset game
+app.post("/api/admin/reset-game", verifyAdminToken, (req, res) => {
     if (selectionTimer) clearInterval(selectionTimer);
     if (drawTimer) clearInterval(drawTimer);
     if (nextRoundTimer) clearTimeout(nextRoundTimer);
     
-    selectionTimer = null;
-    drawTimer = null;
-    nextRoundTimer = null;
+    selectionTimer = drawTimer = nextRoundTimer = null;
     
-    // Reset game state
     gameState = {
         status: 'selection',
         round: 1,
         timer: SELECTION_TIME,
         drawnNumbers: [],
         winners: [],
-        players: gameState.players,  // Preserve players but clear their selections
+        players: gameState.players,
         totalBet: 0,
-        winnerReward: 0
+        winnerReward: 0,
+        adminCommission: 0,
+        winPercentage: DEFAULT_WIN_PERCENTAGE,
+        roundStartTime: null,
+        roundEndTime: null
     };
     
-    // Clear player selections
     for (const [socketId, player] of gameState.players) {
         player.selectedCartelas = [];
     }
     
-    // Start fresh
     startSelectionTimer();
-    
     io.emit('gameReset', { message: 'Game has been reset by admin!' });
-    
     res.json({ success: true, message: "Game reset successfully!" });
 });
 
-// Add balance to a player (admin)
-app.post("/api/admin/add-balance", (req, res) => {
+// Add player balance
+app.post("/api/admin/add-balance", verifyAdminToken, (req, res) => {
     const { socketId, amount } = req.body;
-    
-    if (!socketId || !amount) {
-        return res.status(400).json({ success: false, message: "Socket ID and amount required" });
-    }
-    
     const player = gameState.players.get(socketId);
+    
     if (!player) {
         return res.status(404).json({ success: false, message: "Player not found" });
     }
     
     player.balance += amount;
     
+    gameData.transactions.push({
+        userId: socketId,
+        username: player.username,
+        type: 'admin_add',
+        amount,
+        timestamp: new Date().toISOString()
+    });
+    saveData();
+    
     io.to(socketId).emit('balanceUpdated', { balance: player.balance });
+    res.json({ success: true, newBalance: player.balance });
+});
+
+// Get all players
+app.get("/api/admin/players", verifyAdminToken, (req, res) => {
+    const players = Array.from(gameState.players.values()).map(p => ({
+        socketId: p.socketId,
+        username: p.username,
+        balance: p.balance,
+        selectedCartelas: p.selectedCartelas,
+        totalWon: p.totalWon || 0,
+        totalPlayed: p.totalPlayed || 0,
+        gamesWon: p.gamesWon || 0
+    }));
+    res.json({ success: true, players });
+});
+
+// ==================== REPORT ENDPOINTS ====================
+
+// Daily report
+app.get("/api/reports/daily", verifyAdminToken, (req, res) => {
+    const { date } = req.query;
+    const report = generateDailyReport(date);
+    res.json({ success: true, report });
+});
+
+// Weekly report
+app.get("/api/reports/weekly", verifyAdminToken, (req, res) => {
+    const { year, week } = req.query;
+    const report = generateWeeklyReport(year ? parseInt(year) : null, week ? parseInt(week) : null);
+    res.json({ success: true, report });
+});
+
+// Monthly report
+app.get("/api/reports/monthly", verifyAdminToken, (req, res) => {
+    const { year, month } = req.query;
+    const report = generateMonthlyReport(year ? parseInt(year) : null, month ? parseInt(month) : null);
+    res.json({ success: true, report });
+});
+
+// Date range report
+app.get("/api/reports/range", verifyAdminToken, (req, res) => {
+    const { startDate, endDate } = req.query;
+    
+    const rounds = gameData.gameRounds.filter(r => {
+        const date = r.timestamp?.split('T')[0];
+        return date >= startDate && date <= endDate;
+    });
+    
+    const totalGames = rounds.length;
+    const totalBet = rounds.reduce((sum, r) => sum + (r.totalPool || 0), 0);
+    const totalWon = rounds.reduce((sum, r) => sum + (r.winnerReward || 0), 0);
+    const totalCommission = rounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
+    
+    res.json({
+        success: true,
+        report: {
+            startDate,
+            endDate,
+            totalGames,
+            totalBet,
+            totalWon,
+            totalCommission,
+            rounds: rounds.map(r => ({
+                roundId: r.roundId,
+                date: r.timestamp,
+                totalPlayers: r.totalPlayers,
+                totalBet: r.totalPool,
+                winnerReward: r.winnerReward,
+                adminCommission: r.adminCommission,
+                winners: r.winners
+            }))
+        }
+    });
+});
+
+// Commission summary
+app.get("/api/reports/commission", verifyAdminToken, (req, res) => {
+    const totalCommission = gameData.gameRounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
+    const commissionByRound = gameData.gameRounds.map(r => ({
+        roundId: r.roundId,
+        date: r.timestamp,
+        totalPool: r.totalPool,
+        adminCommission: r.adminCommission,
+        percentage: ((r.adminCommission / r.totalPool) * 100).toFixed(2)
+    }));
+    
+    res.json({
+        success: true,
+        totalCommission,
+        commissionByRound
+    });
+});
+
+// ==================== SOCKET.IO CONNECTION HANDLER ====================
+io.on("connection", (socket) => {
+    console.log(`🟢 Player connected: ${socket.id}`);
+    
+    const defaultUsername = `Player_${socket.id.slice(-4)}`;
+    
+    const playerData = {
+        socketId: socket.id,
+        username: defaultUsername,
+        selectedCartelas: [],
+        balance: 100,
+        totalWon: 0,
+        totalPlayed: 0,
+        gamesWon: 0,
+        joinedAt: Date.now()
+    };
+    
+    gameState.players.set(socket.id, playerData);
+    
+    socket.emit('registered', {
+        socketId: socket.id,
+        username: defaultUsername,
+        balance: 100,
+        gameState: {
+            status: gameState.status,
+            round: gameState.round,
+            timer: gameState.timer,
+            drawnNumbers: gameState.drawnNumbers,
+            winPercentage: gameState.winPercentage
+        }
+    });
+    
+    socket.emit('gameState', {
+        status: gameState.status,
+        round: gameState.round,
+        timer: gameState.timer,
+        drawnNumbers: gameState.drawnNumbers,
+        playersCount: gameState.players.size,
+        winPercentage: gameState.winPercentage
+    });
+    
+    socket.emit('timerUpdate', {
+        seconds: gameState.timer,
+        round: gameState.round,
+        formatted: formatTime(gameState.timer)
+    });
+    
     io.emit('playersUpdate', {
         count: gameState.players.size,
         players: Array.from(gameState.players.values()).map(p => ({
@@ -690,83 +815,171 @@ app.post("/api/admin/add-balance", (req, res) => {
         }))
     });
     
-    res.json({ success: true, newBalance: player.balance });
-});
-
-// Get all players (admin)
-app.get("/api/admin/players", (req, res) => {
-    const players = Array.from(gameState.players.values()).map(p => ({
-        socketId: p.socketId,
-        username: p.username,
-        balance: p.balance,
-        selectedCartelas: p.selectedCartelas,
-        totalWon: p.totalWon || 0,
-        totalPlayed: p.totalPlayed || 0,
-        gamesWon: p.gamesWon || 0,
-        joinedAt: p.joinedAt
-    }));
+    // Set username
+    socket.on("setUsername", (data) => {
+        const player = gameState.players.get(socket.id);
+        if (player && data.username && data.username.trim().length > 0) {
+            player.username = data.username.trim().substring(0, 20);
+            socket.emit('usernameChanged', { username: player.username });
+            broadcastGameState();
+        }
+    });
     
-    res.json({ success: true, players });
-});
-
-// Get game logs (admin)
-app.get("/api/admin/logs", (req, res) => {
-    res.json({
-        success: true,
-        gameState: {
-            status: gameState.status,
+    // Select cartela
+    socket.on("selectCartela", (data) => {
+        const player = gameState.players.get(socket.id);
+        if (!player) return;
+        
+        if (gameState.status !== 'selection') {
+            socket.emit("error", { message: `Cannot select. Game is ${gameState.status}. Wait for next round.` });
+            return;
+        }
+        
+        if (player.selectedCartelas.length >= MAX_CARTELAS) {
+            socket.emit("error", { message: `Maximum ${MAX_CARTELAS} cartelas allowed!` });
+            return;
+        }
+        
+        if (player.selectedCartelas.includes(data.cartelaNumber)) {
+            socket.emit("error", { message: `Cartela ${data.cartelaNumber} already selected!` });
+            return;
+        }
+        
+        if (player.balance < BET_AMOUNT) {
+            socket.emit("error", { message: `Insufficient balance! Need ${BET_AMOUNT} ETB.` });
+            return;
+        }
+        
+        player.balance -= BET_AMOUNT;
+        player.selectedCartelas.push(data.cartelaNumber);
+        
+        gameData.transactions.push({
+            userId: socket.id,
+            username: player.username,
+            type: 'bet',
+            amount: BET_AMOUNT,
+            cartela: data.cartelaNumber,
             round: gameState.round,
-            timer: gameState.timer,
-            drawnNumbers: gameState.drawnNumbers,
-            winners: gameState.winners
-        },
-        playersCount: gameState.players.size,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString()
+        });
+        saveData();
+        
+        socket.emit("selectionConfirmed", {
+            cartela: data.cartelaNumber,
+            selectedCount: player.selectedCartelas.length,
+            balance: player.balance,
+            remainingSlots: MAX_CARTELAS - player.selectedCartelas.length
+        });
+        
+        broadcastGameState();
+        io.emit('playersUpdate', {
+            count: gameState.players.size,
+            players: Array.from(gameState.players.values()).map(p => ({
+                username: p.username,
+                selectedCount: p.selectedCartelas.length,
+                balance: p.balance
+            }))
+        });
+    });
+    
+    // Deselect cartela
+    socket.on("deselectCartela", (data) => {
+        const player = gameState.players.get(socket.id);
+        if (!player) return;
+        
+        if (gameState.status !== 'selection') {
+            socket.emit("error", { message: "Cannot deselect after game started!" });
+            return;
+        }
+        
+        const index = player.selectedCartelas.indexOf(data.cartelaNumber);
+        if (index !== -1) {
+            player.selectedCartelas.splice(index, 1);
+            player.balance += BET_AMOUNT;
+            
+            socket.emit("selectionUpdated", {
+                selectedCartelas: player.selectedCartelas,
+                balance: player.balance
+            });
+            
+            broadcastGameState();
+        }
+    });
+    
+    // Get status
+    socket.on("getStatus", () => {
+        const player = gameState.players.get(socket.id);
+        if (player) {
+            socket.emit("playerStatus", {
+                balance: player.balance,
+                selectedCartelas: player.selectedCartelas,
+                gameStatus: gameState.status,
+                timer: gameState.timer,
+                round: gameState.round,
+                drawnNumbers: gameState.drawnNumbers,
+                totalWon: player.totalWon,
+                totalPlayed: player.totalPlayed,
+                gamesWon: player.gamesWon,
+                winPercentage: gameState.winPercentage
+            });
+        }
+    });
+    
+    // Disconnect
+    socket.on("disconnect", () => {
+        console.log(`🔴 Player disconnected: ${socket.id}`);
+        gameState.players.delete(socket.id);
+        io.emit('playersUpdate', {
+            count: gameState.players.size,
+            players: Array.from(gameState.players.values()).map(p => ({
+                username: p.username,
+                selectedCount: p.selectedCartelas.length,
+                balance: p.balance
+            }))
+        });
+        broadcastGameState();
     });
 });
 
-// Health check endpoint
+// ==================== HEALTH CHECK ====================
 app.get("/health", (req, res) => {
     res.json({
         status: "OK",
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         gameStatus: gameState.status,
-        playersOnline: gameState.players.size
+        playersOnline: gameState.players.size,
+        totalRounds: gameData.gameRounds.length
     });
-});
-
-// Root endpoint
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "../public/player.html"));
 });
 
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 3000;
 
-// Initialize the game on server start
 startSelectionTimer();
 
 server.listen(PORT, () => {
     console.log(`
-╔══════════════════════════════════════════════════════════╗
-║                                                          ║
-║     🎲 ESTIF BINGO 24/7 SERVER STARTED 🎲               ║
-║                                                          ║
-║     📱 Player URL: http://localhost:${PORT}/player.html     ║
-║     🔐 Admin URL:  http://localhost:${PORT}/admin.html     ║
-║                                                          ║
-║     🎮 Game Status: ${gameState.status.padEnd(20)}            ║
-║     🌍 Environment: ${(process.env.NODE_ENV || 'development').padEnd(20)}            ║
-║                                                          ║
-╚══════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║              🎲 ESTIF BINGO 24/7 - PROFESSIONAL EDITION 🎲               ║
+║                                                                           ║
+║     📱 Player URL: https://estif-bingo-247.onrender.com/player.html       ║
+║     🔐 Admin URL:  https://estif-bingo-247.onrender.com/admin.html        ║
+║                                                                           ║
+║     👤 Admin Email: johnsonestiph13@gmail.com                            ║
+║     🔑 Admin Password: Jon@2127                                          ║
+║                                                                           ║
+║     🎮 Game Status: ${gameState.status.padEnd(35)}           ║
+║     🌍 Environment: ${(process.env.NODE_ENV || 'development').padEnd(35)}           ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
     `);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
-    console.log('SIGTERM received, closing server...');
+    console.log('SIGTERM received, saving data and closing...');
+    saveData();
     if (selectionTimer) clearInterval(selectionTimer);
     if (drawTimer) clearInterval(drawTimer);
     if (nextRoundTimer) clearTimeout(nextRoundTimer);
