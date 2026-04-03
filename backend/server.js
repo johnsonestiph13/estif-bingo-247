@@ -27,7 +27,6 @@ app.use(express.static(path.join(__dirname, "../public")));
 app.use(compression());  // Now compression is defined!
 
 // ==================== DATABASE ====================
-const fs = require('fs');
 const compression = require('compression');
 const DATA_FILE = path.join(__dirname, '../data/game-data.json');
 const CARTELA_DATA_FILE = path.join(__dirname, '../data/cartelas.json');
