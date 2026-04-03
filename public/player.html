@@ -112,25 +112,25 @@
             gap: 8px;
             justify-content: center;
             margin-top: 15px;
-            max-height: 150px;
+            max-height: 100px;
             overflow-y: auto;
         }
         
         .called-ball {
             background: #f5c542;
             color: #1a472a;
-            width: 45px;
-            height: 45px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             animation: popIn 0.3s ease-out;
         }
         
-        /* Cartela Grid */
+        /* Cartela Selection Grid */
         .cartela-section {
             background: rgba(15, 62, 42, 0.95);
             backdrop-filter: blur(10px);
@@ -193,8 +193,129 @@
             pointer-events: none;
         }
         
-        /* Selected Cartelas */
-        .selected-cartelas {
+        /* Bingo Card Display (5x5 Grid) */
+        .bingo-card-section {
+            background: rgba(15, 62, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .bingo-header {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .bingo-letter {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .bingo-letter.B { background: #ff6b6b; }
+        .bingo-letter.I { background: #4ecdc4; }
+        .bingo-letter.N { background: #ffe66d; color: #1a472a; }
+        .bingo-letter.G { background: #95e77e; color: #1a472a; }
+        .bingo-letter.O { background: #ff9f43; }
+        
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            background: #2a5a3e;
+            padding: 15px;
+            border-radius: 15px;
+        }
+        
+        .bingo-cell {
+            background: #fef2d6;
+            color: #1a472a;
+            text-align: center;
+            padding: 12px 5px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .bingo-cell.marked {
+            background: #4caf50;
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 0 0 2px gold;
+        }
+        
+        .bingo-cell.free {
+            background: #ffe66d;
+            color: #1a472a;
+        }
+        
+        .bingo-cell.winning-line {
+            background: #ff9800;
+            color: white;
+            animation: pulse 0.5s infinite;
+        }
+        
+        /* Winner Overlay */
+        .winner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+        
+        .winner-card {
+            background: linear-gradient(135deg, #f5c542, #ff9800);
+            padding: 30px;
+            border-radius: 30px;
+            text-align: center;
+            color: #1a472a;
+            max-width: 90%;
+        }
+        
+        .winner-title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .winner-cartela {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        
+        .winner-line {
+            font-size: 18px;
+            margin: 10px 0;
+            background: rgba(0,0,0,0.2);
+            padding: 8px;
+            border-radius: 10px;
+        }
+        
+        .winner-reward {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        
+        .next-round-info {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        /* Selected Cartelas List */
+        .selected-cartelas-list {
             display: flex;
             gap: 15px;
             justify-content: center;
@@ -209,6 +330,11 @@
             text-align: center;
             min-width: 120px;
             position: relative;
+            cursor: pointer;
+        }
+        
+        .selected-card:hover {
+            background: #3a6a4e;
         }
         
         .selected-number {
@@ -230,39 +356,15 @@
             cursor: pointer;
         }
         
-        /* Winner Announcement */
-        .winner-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            animation: fadeIn 0.3s;
-        }
-        
-        .winner-card {
-            background: linear-gradient(135deg, #f5c542, #ff9800);
-            padding: 40px;
-            border-radius: 30px;
-            text-align: center;
+        .view-card-btn {
+            background: #f5c542;
             color: #1a472a;
-        }
-        
-        .winner-title {
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        
-        .winner-reward {
-            font-size: 28px;
-            font-weight: bold;
-            margin: 15px 0;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-top: 8px;
+            cursor: pointer;
+            font-size: 12px;
         }
         
         /* Toast */
@@ -292,7 +394,7 @@
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+            50% { opacity: 0.7; }
         }
         
         @keyframes popIn {
@@ -315,7 +417,8 @@
             .cartela-item { font-size: 12px; padding: 8px 3px; }
             .timer { font-size: 36px; }
             .called-ball { width: 35px; height: 35px; font-size: 14px; }
-            .winner-title { font-size: 24px; }
+            .bingo-cell { padding: 8px 3px; font-size: 12px; }
+            .bingo-letter { font-size: 18px; }
         }
     </style>
 </head>
@@ -337,6 +440,7 @@
             <div class="called-numbers" id="calledNumbers"></div>
         </div>
         
+        <!-- Cartela Selection Section (Before Game Starts) -->
         <div class="cartela-section" id="cartelaSection">
             <div class="section-title">
                 <h3>🎲 SELECT YOUR CARTELAS</h3>
@@ -349,12 +453,29 @@
             <div class="cartela-grid" id="cartelaGrid"></div>
         </div>
         
+        <!-- Selected Cartelas Section (After Game Starts) -->
         <div class="cartela-section" id="selectedSection" style="display: none;">
             <div class="section-title">
                 <h3>🎯 YOUR SELECTED CARTELAS</h3>
-                <p>Waiting for numbers to be called!</p>
+                <p>Click on any cartela to view your BINGO card</p>
             </div>
-            <div class="selected-cartelas" id="selectedCartelasList"></div>
+            <div class="selected-cartelas-list" id="selectedCartelasList"></div>
+        </div>
+        
+        <!-- Bingo Card Display (Shows when a cartela is clicked during game) -->
+        <div class="bingo-card-section" id="bingoCardSection" style="display: none;">
+            <div class="section-title">
+                <h3 id="bingoCardTitle">🎯 Cartela #--- BINGO Card</h3>
+            </div>
+            <div class="bingo-header">
+                <div class="bingo-letter B">B</div>
+                <div class="bingo-letter I">I</div>
+                <div class="bingo-letter N">N</div>
+                <div class="bingo-letter G">G</div>
+                <div class="bingo-letter O">O</div>
+            </div>
+            <div class="bingo-grid" id="bingoGrid"></div>
+            <div id="winningLines" style="margin-top: 10px; text-align: center; font-size: 14px; color: #f5c542;"></div>
         </div>
         
         <div class="footer">
@@ -364,18 +485,169 @@
     
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Game state
+        // ==================== CONFIGURATION ====================
         let socket = null;
         let gameState = { status: 'selection', round: 0, timer: 50, drawnNumbers: [] };
         let playerState = { balance: 0, selectedCartelas: [], username: '' };
         let cartelaElements = [];
+        let currentViewingCartela = null;
+        let cartelaGrids = {};  // Store cartela grids when fetched
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeSocket();
-            createCartelaGrid();
-        });
+        // ==================== HELPER FUNCTIONS ====================
+        function getBingoLetter(num) {
+            if (num <= 15) return "B";
+            if (num <= 30) return "I";
+            if (num <= 45) return "N";
+            if (num <= 60) return "G";
+            return "O";
+        }
         
+        // Load cartela grid from server (in production, you'd have this data locally)
+        async function loadCartelaGrid(cartelaId) {
+            if (cartelaGrids[cartelaId]) return cartelaGrids[cartelaId];
+            
+            // For now, generate a random valid bingo card
+            // In production, load from your CSV data
+            const grid = generateRandomBingoCard();
+            cartelaGrids[cartelaId] = grid;
+            return grid;
+        }
+        
+        // Generate a random valid bingo card (B:1-15, I:16-30, N:31-45 with FREE, G:46-60, O:61-75)
+        function generateRandomBingoCard() {
+            function getRandomNumbers(min, max, count, excludeFree = false) {
+                const numbers = [];
+                const available = [];
+                for (let i = min; i <= max; i++) available.push(i);
+                for (let i = 0; i < count; i++) {
+                    const randomIndex = Math.floor(Math.random() * available.length);
+                    numbers.push(available[randomIndex]);
+                    available.splice(randomIndex, 1);
+                }
+                return numbers;
+            }
+            
+            const bNumbers = getRandomNumbers(1, 15, 5);
+            const iNumbers = getRandomNumbers(16, 30, 5);
+            const nNumbers = getRandomNumbers(31, 45, 5);
+            const gNumbers = getRandomNumbers(46, 60, 5);
+            const oNumbers = getRandomNumbers(61, 75, 5);
+            
+            // Set FREE space in center (row 2, col 2)
+            nNumbers[2] = "FREE";
+            
+            return [
+                [bNumbers[0], iNumbers[0], nNumbers[0], gNumbers[0], oNumbers[0]],
+                [bNumbers[1], iNumbers[1], nNumbers[1], gNumbers[1], oNumbers[1]],
+                [bNumbers[2], iNumbers[2], nNumbers[2], gNumbers[2], oNumbers[2]],
+                [bNumbers[3], iNumbers[3], nNumbers[3], gNumbers[3], oNumbers[3]],
+                [bNumbers[4], iNumbers[4], nNumbers[4], gNumbers[4], oNumbers[4]]
+            ];
+        }
+        
+        // Check for BINGO wins
+        function checkBingoWin(cartelaId, drawnNumbers) {
+            const grid = cartelaGrids[cartelaId];
+            if (!grid) return { won: false, winningLines: [] };
+            
+            const drawnSet = new Set(drawnNumbers);
+            drawnSet.add("FREE");
+            
+            const winningLines = [];
+            
+            // Check rows
+            for (let row = 0; row < 5; row++) {
+                if (grid[row].every(num => drawnSet.has(num))) {
+                    winningLines.push(`Row ${row + 1}`);
+                }
+            }
+            
+            // Check columns
+            for (let col = 0; col < 5; col++) {
+                let win = true;
+                for (let row = 0; row < 5; row++) {
+                    if (!drawnSet.has(grid[row][col])) {
+                        win = false;
+                        break;
+                    }
+                }
+                if (win) winningLines.push(`Column ${col + 1}`);
+            }
+            
+            // Check diagonals
+            let diag1 = true, diag2 = true;
+            for (let i = 0; i < 5; i++) {
+                if (!drawnSet.has(grid[i][i])) diag1 = false;
+                if (!drawnSet.has(grid[i][4 - i])) diag2 = false;
+            }
+            if (diag1) winningLines.push("Diagonal (Top-Left to Bottom-Right)");
+            if (diag2) winningLines.push("Diagonal (Top-Right to Bottom-Left)");
+            
+            // Check four corners
+            if (drawnSet.has(grid[0][0]) && drawnSet.has(grid[0][4]) &&
+                drawnSet.has(grid[4][0]) && drawnSet.has(grid[4][4])) {
+                winningLines.push("Four Corners");
+            }
+            
+            return { won: winningLines.length > 0, winningLines };
+        }
+        
+        // Display Bingo Card
+        async function displayBingoCard(cartelaId) {
+            const grid = await loadCartelaGrid(cartelaId);
+            if (!grid) return;
+            
+            currentViewingCartela = cartelaId;
+            document.getElementById('bingoCardTitle').textContent = `🎯 Cartela #${cartelaId} BINGO Card`;
+            
+            const container = document.getElementById('bingoGrid');
+            container.innerHTML = '';
+            
+            const drawnSet = new Set(gameState.drawnNumbers);
+            drawnSet.add("FREE");
+            
+            // Check winning lines
+            const { won, winningLines } = checkBingoWin(cartelaId, gameState.drawnNumbers);
+            const winningSet = new Set();
+            
+            if (won) {
+                // Mark winning cells (simplified - mark all cells in winning lines)
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        winningSet.add(`${row},${col}`);
+                    }
+                }
+                document.getElementById('winningLines').innerHTML = `🏆 WINNING LINES: ${winningLines.join(', ')} 🏆`;
+            } else {
+                document.getElementById('winningLines').innerHTML = '';
+            }
+            
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'bingo-cell';
+                    const value = grid[row][col];
+                    const isMarked = drawnSet.has(value);
+                    const isWinning = winningSet.has(`${row},${col}`);
+                    
+                    if (value === "FREE") {
+                        cell.textContent = "⭐";
+                        cell.classList.add('free');
+                    } else {
+                        cell.textContent = value;
+                    }
+                    
+                    if (isMarked) cell.classList.add('marked');
+                    if (isWinning && won) cell.classList.add('winning-line');
+                    
+                    container.appendChild(cell);
+                }
+            }
+            
+            document.getElementById('bingoCardSection').style.display = 'block';
+        }
+        
+        // ==================== SOCKET INITIALIZATION ====================
         function initializeSocket() {
             socket = io();
             
@@ -398,6 +670,11 @@
             socket.on('gameState', (state) => {
                 gameState = state;
                 updateGameDisplay();
+                
+                // Refresh bingo card if viewing one
+                if (currentViewingCartela) {
+                    displayBingoCard(currentViewingCartela);
+                }
             });
             
             socket.on('timerUpdate', (data) => {
@@ -418,9 +695,23 @@
                 showCartelaSelection(false);
             });
             
-            socket.on('numberDrawn', (data) => {
+            socket.on('numberDrawn', async (data) => {
                 addCalledNumber(data.number);
                 playSound(data.number);
+                
+                // Refresh bingo card if viewing one
+                if (currentViewingCartela) {
+                    await displayBingoCard(currentViewingCartela);
+                }
+                
+                // Check if current viewing cartela won
+                if (currentViewingCartela) {
+                    const { won, winningLines } = checkBingoWin(currentViewingCartela, gameState.drawnNumbers);
+                    if (won) {
+                        showWinnerOverlay(currentViewingCartela, winningLines, 0);
+                        playWinSound();
+                    }
+                }
             });
             
             socket.on('selectionConfirmed', (data) => {
@@ -430,6 +721,9 @@
                 updateSelectedCount(playerState.selectedCartelas.length);
                 showToast(data.message, 'success');
                 updateCartelaHighlight(data.cartela, true);
+                
+                // Load cartela grid for future use
+                loadCartelaGrid(data.cartela);
             });
             
             socket.on('selectionUpdated', (data) => {
@@ -441,13 +735,21 @@
             });
             
             socket.on('roundEnded', (data) => {
-                showWinnerAnnouncement(data);
-                playWinSound();
+                gameState.status = 'ended';
+                updateGameDisplay();
+                
+                // Show winner announcement if this player won
+                if (data.winners && data.winners.includes(playerState.username)) {
+                    showWinnerOverlay(null, null, data.winnerReward);
+                    playWinSound();
+                } else if (data.winners && data.winners.length > 0) {
+                    showToast(`🎉 Winners: ${data.winners.join(', ')}. Each wins ${data.winnerReward.toFixed(2)} ETB!`, 'success');
+                    playWinSound();
+                }
+                
                 playerState.selectedCartelas = [];
                 updateSelectedDisplay();
                 refreshCartelaHighlights();
-                gameState.status = 'ended';
-                updateGameDisplay();
             });
             
             socket.on('nextRound', (data) => {
@@ -459,12 +761,23 @@
                 showCartelaSelection(true);
                 showToast(data.message, 'info');
                 document.getElementById('calledNumbers').innerHTML = '';
+                document.getElementById('bingoCardSection').style.display = 'none';
+                currentViewingCartela = null;
+            });
+            
+            socket.on('youWon', (data) => {
+                playerState.balance += data.amount;
+                updateBalanceDisplay();
+                showToast(data.message, 'success');
+                playWinSound();
             });
             
             socket.on('error', (message) => {
                 showToast(message, 'error');
             });
         }
+        
+        // ==================== UI FUNCTIONS ====================
         
         function createCartelaGrid() {
             const grid = document.getElementById('cartelaGrid');
@@ -493,6 +806,10 @@
             } else {
                 if (playerState.selectedCartelas.length >= 2) {
                     showToast('Maximum 2 cartelas allowed!', 'error');
+                    return;
+                }
+                if (playerState.balance < 10) {
+                    showToast(`Insufficient balance! Need 10 ETB. You have ${playerState.balance} ETB.`, 'error');
                     return;
                 }
                 socket.emit('selectCartela', { cartelaNumber: number });
@@ -534,9 +851,15 @@
                 card.innerHTML = `
                     <div class="selected-number">#${cartela}</div>
                     <button class="remove-btn" onclick="deselectCartela(${cartela})">✗</button>
+                    <button class="view-card-btn" onclick="viewCartelaCard(${cartela})">View Card</button>
                 `;
                 container.appendChild(card);
             });
+        }
+        
+        async function viewCartelaCard(cartela) {
+            await loadCartelaGrid(cartela);
+            await displayBingoCard(cartela);
         }
         
         function deselectCartela(number) {
@@ -566,6 +889,7 @@
             if (gameState.status === 'selection') {
                 cartelaSection.style.display = 'block';
                 selectedSection.style.display = 'none';
+                document.getElementById('bingoCardSection').style.display = 'none';
                 enableCartelaSelection(true);
             } else if (gameState.status === 'active') {
                 cartelaSection.style.display = 'none';
@@ -591,23 +915,25 @@
             const container = document.getElementById('calledNumbers');
             if (!container) return;
             container.innerHTML = '';
-            numbers.forEach(number => {
+            numbers.slice(-15).forEach(number => {
+                const letter = getBingoLetter(number);
                 const ball = document.createElement('div');
                 ball.className = 'called-ball';
-                ball.textContent = number;
+                ball.textContent = `${letter}-${number}`;
                 container.appendChild(ball);
             });
         }
         
         function addCalledNumber(number) {
             const container = document.getElementById('calledNumbers');
+            const letter = getBingoLetter(number);
             const ball = document.createElement('div');
             ball.className = 'called-ball';
-            ball.textContent = number;
+            ball.textContent = `${letter}-${number}`;
             container.appendChild(ball);
             container.scrollTop = container.scrollHeight;
             
-            while (container.children.length > 30) {
+            while (container.children.length > 20) {
                 container.removeChild(container.firstChild);
             }
         }
@@ -636,23 +962,42 @@
             const selectedSection = document.getElementById('selectedSection');
             if (cartelaSection) cartelaSection.style.display = show ? 'block' : 'none';
             if (selectedSection) selectedSection.style.display = show ? 'none' : 'block';
+            if (!show) {
+                updateSelectedDisplay();
+            }
         }
         
-        function showWinnerAnnouncement(data) {
+        function showWinnerOverlay(cartelaId, winningLines, reward) {
             const overlay = document.createElement('div');
             overlay.className = 'winner-overlay';
-            overlay.innerHTML = `
+            
+            let content = `
                 <div class="winner-card">
                     <div class="winner-title">🎉 BINGO! 🎉</div>
-                    <div class="winner-reward">💰 ${data.winnerReward.toFixed(2)} ETB</div>
-                    <div class="winner-names">${data.message}</div>
-                    <div class="next-round-info">⏳ Next round starting soon...</div>
-                </div>
             `;
+            
+            if (cartelaId) {
+                content += `<div class="winner-cartela">🔒 Winning Cartela: ${cartelaId}</div>`;
+            }
+            if (winningLines && winningLines.length > 0) {
+                content += `<div class="winner-line">🏆 ${winningLines.join(', ')} 🏆</div>`;
+            }
+            if (reward > 0) {
+                content += `<div class="winner-reward">💰 You won ${reward.toFixed(2)} ETB!</div>`;
+            }
+            
+            content += `<div class="next-round-info">⏳ Auto-starting next game in 6 seconds...</div>
+                    </div>`;
+            
+            overlay.innerHTML = content;
             document.body.appendChild(overlay);
-            setTimeout(() => overlay.remove(), 5000);
+            
+            setTimeout(() => {
+                overlay.remove();
+            }, 5000);
         }
         
+        // ==================== AUDIO FUNCTIONS ====================
         function playSound(number) {
             const audio = new Audio(`/assets/sounds/${number}.mp3`);
             audio.play().catch(e => console.log('Audio error:', e));
@@ -671,7 +1016,15 @@
             setTimeout(() => toast.remove(), 3000);
         }
         
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSocket();
+            createCartelaGrid();
+        });
+        
+        // Make functions global for onclick handlers
         window.deselectCartela = deselectCartela;
+        window.viewCartelaCard = viewCartelaCard;
     </script>
 </body>
 </html>

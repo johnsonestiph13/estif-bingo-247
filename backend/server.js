@@ -23,9 +23,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "../public")));
 
 // ==================== DATABASE (In-Memory with Persistence) ====================
-// For production, replace with PostgreSQL. This works for demo.
 const fs = require('fs');
 const DATA_FILE = path.join(__dirname, '../data/game-data.json');
+const CARTELA_DATA_FILE = path.join(__dirname, '../data/cartelas.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(path.join(__dirname, '../data'))) {
@@ -40,6 +40,9 @@ let gameData = {
     reports: []
 };
 
+// Load or initialize cartela data (400 bingo cards)
+let cartelaData = {};
+
 try {
     if (fs.existsSync(DATA_FILE)) {
         const loaded = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
@@ -50,12 +53,31 @@ try {
     console.log("⚠️ No existing data found, starting fresh");
 }
 
+try {
+    if (fs.existsSync(CARTELA_DATA_FILE)) {
+        cartelaData = JSON.parse(fs.readFileSync(CARTELA_DATA_FILE, 'utf8'));
+        console.log(`✅ Loaded ${Object.keys(cartelaData).length} cartelas from file`);
+    } else {
+        console.log("⚠️ No cartela data file found, will generate on demand");
+    }
+} catch (err) {
+    console.log("⚠️ Error loading cartela data:", err.message);
+}
+
 // Save data function
 function saveData() {
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(gameData, null, 2));
     } catch (err) {
         console.error("Error saving data:", err);
+    }
+}
+
+function saveCartelaData() {
+    try {
+        fs.writeFileSync(CARTELA_DATA_FILE, JSON.stringify(cartelaData, null, 2));
+    } catch (err) {
+        console.error("Error saving cartela data:", err);
     }
 }
 
@@ -89,8 +111,106 @@ let selectionTimer = null;
 let drawTimer = null;
 let nextRoundTimer = null;
 
-// Admin sessions (simple token storage)
+// Admin sessions
 let adminTokens = new Map();
+
+// ==================== CARTELA GRID FUNCTIONS ====================
+
+// Generate a random valid bingo card (for demo purposes)
+function generateRandomBingoCard() {
+    function getRandomNumbers(min, max, count) {
+        const numbers = [];
+        const available = [];
+        for (let i = min; i <= max; i++) available.push(i);
+        for (let i = 0; i < count; i++) {
+            const randomIndex = Math.floor(Math.random() * available.length);
+            numbers.push(available[randomIndex]);
+            available.splice(randomIndex, 1);
+        }
+        return numbers;
+    }
+    
+    const bNumbers = getRandomNumbers(1, 15, 5);
+    const iNumbers = getRandomNumbers(16, 30, 5);
+    const nNumbers = getRandomNumbers(31, 45, 5);
+    const gNumbers = getRandomNumbers(46, 60, 5);
+    const oNumbers = getRandomNumbers(61, 75, 5);
+    
+    // Set FREE space in center (row 2, col 2 - zero-indexed)
+    nNumbers[2] = "FREE";
+    
+    return {
+        id: null,
+        grid: [
+            [bNumbers[0], iNumbers[0], nNumbers[0], gNumbers[0], oNumbers[0]],
+            [bNumbers[1], iNumbers[1], nNumbers[1], gNumbers[1], oNumbers[1]],
+            [bNumbers[2], iNumbers[2], nNumbers[2], gNumbers[2], oNumbers[2]],
+            [bNumbers[3], iNumbers[3], nNumbers[3], gNumbers[3], oNumbers[3]],
+            [bNumbers[4], iNumbers[4], nNumbers[4], gNumbers[4], oNumbers[4]]
+        ]
+    };
+}
+
+// Get or generate cartela grid
+function getCartelaGrid(cartelaId) {
+    if (cartelaData[cartelaId]) {
+        return cartelaData[cartelaId].grid;
+    }
+    
+    // Generate new cartela
+    const newCartela = generateRandomBingoCard();
+    newCartela.id = cartelaId;
+    cartelaData[cartelaId] = newCartela;
+    saveCartelaData();
+    return newCartela.grid;
+}
+
+// Check for BINGO wins on a specific cartela
+function checkBingoWin(cartelaId, drawnNumbers) {
+    const grid = getCartelaGrid(cartelaId);
+    if (!grid) return { won: false, winningLines: [] };
+    
+    const drawnSet = new Set(drawnNumbers);
+    drawnSet.add("FREE");
+    
+    const winningLines = [];
+    
+    // Check rows
+    for (let row = 0; row < 5; row++) {
+        if (grid[row].every(num => drawnSet.has(num))) {
+            winningLines.push(`Row ${row + 1}`);
+        }
+    }
+    
+    // Check columns
+    for (let col = 0; col < 5; col++) {
+        let win = true;
+        for (let row = 0; row < 5; row++) {
+            if (!drawnSet.has(grid[row][col])) {
+                win = false;
+                break;
+            }
+        }
+        if (win) winningLines.push(`Column ${col + 1}`);
+    }
+    
+    // Check diagonals
+    let diag1 = true, diag2 = true;
+    for (let i = 0; i < 5; i++) {
+        if (!drawnSet.has(grid[i][i])) diag1 = false;
+        if (!drawnSet.has(grid[i][4 - i])) diag2 = false;
+    }
+    if (diag1) winningLines.push("Diagonal (Top-Left to Bottom-Right)");
+    if (diag2) winningLines.push("Diagonal (Top-Right to Bottom-Left)");
+    
+    // Check four corners
+    if (drawnSet.has(grid[0][0]) && drawnSet.has(grid[0][4]) &&
+        drawnSet.has(grid[4][0]) && drawnSet.has(grid[4][4])) {
+        winningLines.push("Four Corners");
+    }
+    
+    return { won: winningLines.length > 0, winningLines };
+}
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -110,6 +230,7 @@ function formatTime(seconds) {
 
 function broadcastGameState() {
     const playersList = Array.from(gameState.players.values()).map(p => ({
+        socketId: p.socketId,
         username: p.username,
         selectedCount: p.selectedCartelas.length,
         balance: p.balance
@@ -150,7 +271,6 @@ function saveRoundToHistory(roundData) {
         timestamp: new Date().toISOString()
     });
     
-    // Keep only last 1000 rounds
     if (gameData.gameRounds.length > 1000) {
         gameData.gameRounds = gameData.gameRounds.slice(-1000);
     }
@@ -241,7 +361,6 @@ function generateMonthlyReport(year, month) {
     };
 }
 
-// Get week number
 function getWeekNumber(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -352,24 +471,31 @@ function startActiveGame() {
         
         broadcastGameState();
         
-        // Check for winners
+        // Check for winners based on actual bingo card grids
         const newWinners = [];
+        const winnerDetails = [];
         
         for (const [socketId, player] of gameState.players) {
-            if (player.selectedCartelas.length > 0 && 
-                !gameState.winners.includes(socketId)) {
-                // Simplified win detection - in production, check actual cartela grid
-                newWinners.push(socketId);
+            if (player.selectedCartelas.length > 0 && !gameState.winners.includes(socketId)) {
+                // Check each selected cartela for bingo
+                for (const cartelaId of player.selectedCartelas) {
+                    const { won, winningLines } = checkBingoWin(cartelaId, gameState.drawnNumbers);
+                    if (won) {
+                        newWinners.push(socketId);
+                        winnerDetails.push({ socketId, cartelaId, winningLines });
+                        break;
+                    }
+                }
             }
         }
         
         if (newWinners.length > 0 && gameState.winners.length === 0) {
-            endRound(newWinners);
+            endRound(newWinners, winnerDetails);
         }
     }, DRAW_INTERVAL);
 }
 
-function endRound(winnerSocketIds) {
+function endRound(winnerSocketIds, winnerDetails = []) {
     if (gameState.status !== 'active') return;
     
     if (drawTimer) {
@@ -385,16 +511,29 @@ function endRound(winnerSocketIds) {
     const perWinnerReward = winnerCount > 0 ? gameState.winnerReward / winnerCount : 0;
     
     const winnerNames = [];
-    for (const socketId of winnerSocketIds) {
+    const winnerCartelas = [];
+    
+    for (let i = 0; i < winnerSocketIds.length; i++) {
+        const socketId = winnerSocketIds[i];
         const player = gameState.players.get(socketId);
+        const detail = winnerDetails.find(d => d.socketId === socketId);
+        
         if (player) {
+            // Add reward to player balance
             player.balance += perWinnerReward;
             player.totalWon = (player.totalWon || 0) + perWinnerReward;
             player.gamesWon = (player.gamesWon || 0) + 1;
             winnerNames.push(player.username);
             
+            if (detail) {
+                winnerCartelas.push({ username: player.username, cartelaId: detail.cartelaId, winningLines: detail.winningLines });
+            }
+            
+            // Send individual win notification
             io.to(socketId).emit('youWon', {
                 amount: perWinnerReward,
+                cartelaId: detail?.cartelaId,
+                winningLines: detail?.winningLines,
                 message: `🎉 Congratulations! You won ${perWinnerReward.toFixed(2)} ETB!`
             });
             
@@ -426,6 +565,7 @@ function endRound(winnerSocketIds) {
         winnerReward: gameState.winnerReward,
         adminCommission: gameState.adminCommission,
         winners: winnerNames,
+        winnerCartelas: winnerCartelas,
         winnerCount,
         perWinnerReward,
         winPercentage: gameState.winPercentage,
@@ -435,6 +575,7 @@ function endRound(winnerSocketIds) {
     
     io.emit('roundEnded', {
         winners: winnerNames,
+        winnerCartelas: winnerCartelas,
         winnerCount,
         winnerReward: perWinnerReward,
         totalPool: gameState.totalBet,
@@ -496,13 +637,11 @@ function resetForNextRound() {
 const ADMIN_EMAIL = "johnsonestiph13@gmail.com";
 let ADMIN_PASSWORD_HASH = null;
 
-// Initialize admin password
 (async () => {
     ADMIN_PASSWORD_HASH = await bcrypt.hash("Jon@2127", 10);
     console.log("✅ Admin password initialized");
 })();
 
-// Admin login endpoint
 app.post("/api/admin/login", async (req, res) => {
     const { email, password } = req.body;
     
@@ -521,7 +660,6 @@ app.post("/api/admin/login", async (req, res) => {
     res.json({ success: true, token, message: "Login successful" });
 });
 
-// Admin change password
 app.post("/api/admin/change-password", async (req, res) => {
     const { currentPassword, newPassword, token } = req.body;
     
@@ -538,7 +676,6 @@ app.post("/api/admin/change-password", async (req, res) => {
     res.json({ success: true, message: "Password changed successfully" });
 });
 
-// Admin auth middleware
 function verifyAdminToken(req, res, next) {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token || !adminTokens.has(token)) {
@@ -547,9 +684,22 @@ function verifyAdminToken(req, res, next) {
     next();
 }
 
+// ==================== CARTELA API ENDPOINTS ====================
+
+// Get cartela grid
+app.get("/api/cartela/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+    const grid = getCartelaGrid(id);
+    res.json({ success: true, cartelaId: id, grid });
+});
+
+// Get all cartelas (for admin)
+app.get("/api/admin/cartelas", verifyAdminToken, (req, res) => {
+    res.json({ success: true, cartelas: cartelaData, count: Object.keys(cartelaData).length });
+});
+
 // ==================== ADMIN API ENDPOINTS ====================
 
-// Get admin stats
 app.get("/api/admin/stats", verifyAdminToken, (req, res) => {
     const players = Array.from(gameState.players.values());
     const totalBalance = players.reduce((sum, p) => sum + (p.balance || 0), 0);
@@ -571,7 +721,6 @@ app.get("/api/admin/stats", verifyAdminToken, (req, res) => {
     });
 });
 
-// Update win percentage
 app.post("/api/admin/win-percentage", verifyAdminToken, (req, res) => {
     const { percentage } = req.body;
     
@@ -584,7 +733,6 @@ app.post("/api/admin/win-percentage", verifyAdminToken, (req, res) => {
     res.json({ success: true, message: `Win percentage updated to ${percentage}%` });
 });
 
-// Force start game
 app.post("/api/admin/start-game", verifyAdminToken, (req, res) => {
     if (gameState.status === 'selection') {
         if (selectionTimer) {
@@ -598,7 +746,6 @@ app.post("/api/admin/start-game", verifyAdminToken, (req, res) => {
     }
 });
 
-// Force end game
 app.post("/api/admin/end-game", verifyAdminToken, (req, res) => {
     if (gameState.status === 'active') {
         if (drawTimer) {
@@ -612,7 +759,6 @@ app.post("/api/admin/end-game", verifyAdminToken, (req, res) => {
     }
 });
 
-// Reset game
 app.post("/api/admin/reset-game", verifyAdminToken, (req, res) => {
     if (selectionTimer) clearInterval(selectionTimer);
     if (drawTimer) clearInterval(drawTimer);
@@ -644,28 +790,80 @@ app.post("/api/admin/reset-game", verifyAdminToken, (req, res) => {
     res.json({ success: true, message: "Game reset successfully!" });
 });
 
-// Add player balance
+// Add player balance (admin can ADD only, not deduct)
 app.post("/api/admin/add-balance", verifyAdminToken, (req, res) => {
     const { socketId, amount } = req.body;
-    const player = gameState.players.get(socketId);
     
+    if (!socketId) {
+        return res.status(400).json({ success: false, message: "Socket ID required" });
+    }
+    
+    const addAmount = parseFloat(amount);
+    if (isNaN(addAmount) || addAmount <= 0) {
+        return res.status(400).json({ success: false, message: "Amount must be a positive number" });
+    }
+    
+    const player = gameState.players.get(socketId);
     if (!player) {
         return res.status(404).json({ success: false, message: "Player not found" });
     }
     
-    player.balance += amount;
+    const oldBalance = player.balance;
+    player.balance += addAmount;
     
     gameData.transactions.push({
         userId: socketId,
         username: player.username,
         type: 'admin_add',
-        amount,
+        amount: addAmount,
+        oldBalance,
+        newBalance: player.balance,
         timestamp: new Date().toISOString()
     });
     saveData();
     
-    io.to(socketId).emit('balanceUpdated', { balance: player.balance });
-    res.json({ success: true, newBalance: player.balance });
+    io.to(socketId).emit('balanceUpdated', { balance: player.balance, added: addAmount });
+    res.json({ success: true, newBalance: player.balance, added: addAmount });
+});
+
+// Remove player balance (admin can DEDUCT)
+app.post("/api/admin/remove-balance", verifyAdminToken, (req, res) => {
+    const { socketId, amount } = req.body;
+    
+    if (!socketId) {
+        return res.status(400).json({ success: false, message: "Socket ID required" });
+    }
+    
+    const removeAmount = parseFloat(amount);
+    if (isNaN(removeAmount) || removeAmount <= 0) {
+        return res.status(400).json({ success: false, message: "Amount must be a positive number" });
+    }
+    
+    const player = gameState.players.get(socketId);
+    if (!player) {
+        return res.status(404).json({ success: false, message: "Player not found" });
+    }
+    
+    if (player.balance < removeAmount) {
+        return res.status(400).json({ success: false, message: "Insufficient balance", currentBalance: player.balance });
+    }
+    
+    const oldBalance = player.balance;
+    player.balance -= removeAmount;
+    
+    gameData.transactions.push({
+        userId: socketId,
+        username: player.username,
+        type: 'admin_remove',
+        amount: removeAmount,
+        oldBalance,
+        newBalance: player.balance,
+        timestamp: new Date().toISOString()
+    });
+    saveData();
+    
+    io.to(socketId).emit('balanceUpdated', { balance: player.balance, removed: removeAmount });
+    res.json({ success: true, newBalance: player.balance, removed: removeAmount });
 });
 
 // Get all players
@@ -677,35 +875,39 @@ app.get("/api/admin/players", verifyAdminToken, (req, res) => {
         selectedCartelas: p.selectedCartelas,
         totalWon: p.totalWon || 0,
         totalPlayed: p.totalPlayed || 0,
-        gamesWon: p.gamesWon || 0
+        gamesWon: p.gamesWon || 0,
+        joinedAt: p.joinedAt
     }));
     res.json({ success: true, players });
 });
 
+// Get player transactions
+app.get("/api/admin/player-transactions/:socketId", verifyAdminToken, (req, res) => {
+    const { socketId } = req.params;
+    const transactions = gameData.transactions.filter(t => t.userId === socketId);
+    res.json({ success: true, transactions });
+});
+
 // ==================== REPORT ENDPOINTS ====================
 
-// Daily report
 app.get("/api/reports/daily", verifyAdminToken, (req, res) => {
     const { date } = req.query;
     const report = generateDailyReport(date);
     res.json({ success: true, report });
 });
 
-// Weekly report
 app.get("/api/reports/weekly", verifyAdminToken, (req, res) => {
     const { year, week } = req.query;
     const report = generateWeeklyReport(year ? parseInt(year) : null, week ? parseInt(week) : null);
     res.json({ success: true, report });
 });
 
-// Monthly report
 app.get("/api/reports/monthly", verifyAdminToken, (req, res) => {
     const { year, month } = req.query;
     const report = generateMonthlyReport(year ? parseInt(year) : null, month ? parseInt(month) : null);
     res.json({ success: true, report });
 });
 
-// Date range report
 app.get("/api/reports/range", verifyAdminToken, (req, res) => {
     const { startDate, endDate } = req.query;
     
@@ -735,13 +937,13 @@ app.get("/api/reports/range", verifyAdminToken, (req, res) => {
                 totalBet: r.totalPool,
                 winnerReward: r.winnerReward,
                 adminCommission: r.adminCommission,
-                winners: r.winners
+                winners: r.winners,
+                winnerCartelas: r.winnerCartelas
             }))
         }
     });
 });
 
-// Commission summary
 app.get("/api/reports/commission", verifyAdminToken, (req, res) => {
     const totalCommission = gameData.gameRounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
     const commissionByRound = gameData.gameRounds.map(r => ({
@@ -809,6 +1011,7 @@ io.on("connection", (socket) => {
     io.emit('playersUpdate', {
         count: gameState.players.size,
         players: Array.from(gameState.players.values()).map(p => ({
+            socketId: p.socketId,
             username: p.username,
             selectedCount: p.selectedCartelas.length,
             balance: p.balance
@@ -846,12 +1049,15 @@ io.on("connection", (socket) => {
         }
         
         if (player.balance < BET_AMOUNT) {
-            socket.emit("error", { message: `Insufficient balance! Need ${BET_AMOUNT} ETB.` });
+            socket.emit("error", { message: `Insufficient balance! Need ${BET_AMOUNT} ETB. Your balance: ${player.balance} ETB` });
             return;
         }
         
         player.balance -= BET_AMOUNT;
         player.selectedCartelas.push(data.cartelaNumber);
+        
+        // Pre-load cartela grid
+        getCartelaGrid(data.cartelaNumber);
         
         gameData.transactions.push({
             userId: socket.id,
@@ -875,6 +1081,7 @@ io.on("connection", (socket) => {
         io.emit('playersUpdate', {
             count: gameState.players.size,
             players: Array.from(gameState.players.values()).map(p => ({
+                socketId: p.socketId,
                 username: p.username,
                 selectedCount: p.selectedCartelas.length,
                 balance: p.balance
@@ -925,6 +1132,16 @@ io.on("connection", (socket) => {
         }
     });
     
+    // Get cartela grid (for player to view)
+    socket.on("getCartelaGrid", (data, callback) => {
+        const grid = getCartelaGrid(data.cartelaId);
+        if (callback) {
+            callback({ success: true, cartelaId: data.cartelaId, grid });
+        } else {
+            socket.emit("cartelaGrid", { cartelaId: data.cartelaId, grid });
+        }
+    });
+    
     // Disconnect
     socket.on("disconnect", () => {
         console.log(`🔴 Player disconnected: ${socket.id}`);
@@ -932,6 +1149,7 @@ io.on("connection", (socket) => {
         io.emit('playersUpdate', {
             count: gameState.players.size,
             players: Array.from(gameState.players.values()).map(p => ({
+                socketId: p.socketId,
                 username: p.username,
                 selectedCount: p.selectedCartelas.length,
                 balance: p.balance
@@ -949,7 +1167,8 @@ app.get("/health", (req, res) => {
         uptime: process.uptime(),
         gameStatus: gameState.status,
         playersOnline: gameState.players.size,
-        totalRounds: gameData.gameRounds.length
+        totalRounds: gameData.gameRounds.length,
+        cartelasLoaded: Object.keys(cartelaData).length
     });
 });
 
@@ -972,6 +1191,7 @@ server.listen(PORT, () => {
 ║                                                                           ║
 ║     🎮 Game Status: ${gameState.status.padEnd(35)}           ║
 ║     🌍 Environment: ${(process.env.NODE_ENV || 'development').padEnd(35)}           ║
+║     📊 Cartelas Loaded: ${Object.keys(cartelaData).length}                                          ║
 ║                                                                           ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
     `);
@@ -980,6 +1200,7 @@ server.listen(PORT, () => {
 process.on('SIGTERM', () => {
     console.log('SIGTERM received, saving data and closing...');
     saveData();
+    saveCartelaData();
     if (selectionTimer) clearInterval(selectionTimer);
     if (drawTimer) clearInterval(drawTimer);
     if (nextRoundTimer) clearTimeout(nextRoundTimer);
@@ -989,4 +1210,4 @@ process.on('SIGTERM', () => {
     });
 });
 
-module.exports = { app, server, io, gameState };
+module.exports = { app, server, io, gameState, cartelaData, getCartelaGrid, checkBingoWin };
