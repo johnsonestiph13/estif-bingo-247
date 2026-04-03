@@ -5,6 +5,8 @@ const cors = require("cors");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const compression = require("compression");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -22,7 +24,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "../public")));
-app.use(compression());
+app.use(compression());  // Now compression is defined!
 
 // ==================== DATABASE ====================
 const fs = require('fs');
