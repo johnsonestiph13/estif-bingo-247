@@ -30,10 +30,10 @@
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 15px 20px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
             flex-wrap: wrap;
             gap: 10px;
         }
@@ -44,6 +44,13 @@
             color: #f5c542;
         }
         
+        .stats-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
         .balance-card {
             text-align: center;
             background: #2a5a3e;
@@ -52,14 +59,33 @@
         }
         
         .balance-label {
-            font-size: 12px;
+            font-size: 10px;
             opacity: 0.8;
         }
         
         .balance-amount {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             color: #f5c542;
+        }
+        
+        .total-cartelas-card {
+            text-align: center;
+            background: #1e3a2e;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #f5c542;
+        }
+        
+        .total-cartelas-label {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        
+        .total-cartelas-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff9800;
         }
         
         /* Game Display */
@@ -443,6 +469,9 @@
             .called-ball { width: 35px; height: 35px; font-size: 14px; }
             .bingo-cell { padding: 8px 3px; font-size: 12px; }
             .bingo-letter { font-size: 18px; }
+            .stats-container { width: 100%; justify-content: space-between; }
+            .balance-card, .total-cartelas-card { padding: 5px 12px; }
+            .balance-amount, .total-cartelas-value { font-size: 16px; }
         }
     </style>
 </head>
@@ -450,10 +479,16 @@
     <div class="container">
         <div class="header">
             <div class="logo">🎲 Estif Bingo</div>
-            <div class="balance-card">
-                <div class="balance-label">💰 BALANCE</div>
-                <div class="balance-amount" id="balanceAmount">0</div>
-                <span>ETB</span>
+            <div class="stats-container">
+                <div class="balance-card">
+                    <div class="balance-label">💰 BALANCE</div>
+                    <div class="balance-amount" id="balanceAmount">0</div>
+                    <span style="font-size: 10px;">ETB</span>
+                </div>
+                <div class="total-cartelas-card">
+                    <div class="total-cartelas-label">🎯 TOTAL CARTELAS</div>
+                    <div class="total-cartelas-value" id="totalCartelas">400</div>
+                </div>
             </div>
         </div>
         
@@ -472,7 +507,7 @@
             </div>
             <div class="selection-stats">
                 <span>Selected: <strong id="selectedCount">0/2</strong></span>
-                <span>Balance: <strong id="balanceDisplay">0</strong> ETB</span>
+                <span>Available: <strong id="availableCount">400</strong> cartelas</span>
             </div>
             <div class="cartela-grid" id="cartelaGrid"></div>
             <div id="insufficientBalanceMsg" style="text-align: center; margin-top: 15px; color: #ffaa88; display: none;">
@@ -531,6 +566,9 @@
         let cartelaGrids = {};
         let isWatchOnly = false;
         
+        // Total cartelas constant
+        const TOTAL_CARTELAS = 400;
+        
         // ==================== HELPER FUNCTIONS ====================
         function getBingoLetter(num) {
             if (num <= 15) return "B";
@@ -538,6 +576,14 @@
             if (num <= 45) return "N";
             if (num <= 60) return "G";
             return "O";
+        }
+        
+        function updateAvailableCount() {
+            const availableCount = TOTAL_CARTELAS - playerState.selectedCartelas.length;
+            const availableEl = document.getElementById('availableCount');
+            if (availableEl) {
+                availableEl.textContent = availableCount;
+            }
         }
         
         function generateRandomBingoCard() {
@@ -670,14 +716,8 @@
             document.getElementById('bingoCardSection').style.display = 'block';
         }
         
-        // ==================== ENABLE CARTELA SELECTION ====================
         function enableCartelaSelection(enable) {
-            console.log("Enable cartela selection:", enable, "Game status:", gameState.status);
-            
-            if (!cartelaElements || cartelaElements.length === 0) {
-                console.log("Cartela elements not loaded yet");
-                return;
-            }
+            if (!cartelaElements || cartelaElements.length === 0) return;
             
             cartelaElements.forEach(cell => {
                 const num = parseInt(cell.dataset.number);
@@ -719,17 +759,16 @@
             });
             
             socket.on('registered', (data) => {
-                console.log('Registered:', data);
                 playerState.balance = data.balance;
                 playerState.username = data.username;
                 updateBalanceDisplay();
+                updateAvailableCount();
                 
                 if (data.gameState) {
                     gameState = data.gameState;
                     updateGameDisplay();
                 }
                 
-                // Refresh cartela grid with proper enabled state
                 setTimeout(() => {
                     refreshCartelaHighlights();
                     enableCartelaSelection(gameState.status === 'selection' && playerState.balance >= 10);
@@ -737,11 +776,9 @@
             });
             
             socket.on('gameState', (state) => {
-                console.log('Game state update:', state);
                 gameState = state;
                 updateGameDisplay();
                 
-                // Re-enable cartela selection if game is in selection phase
                 if (state.status === 'selection' && !isWatchOnly && playerState.balance >= 10) {
                     enableCartelaSelection(true);
                 } else if (state.status !== 'selection') {
@@ -760,7 +797,7 @@
                 if (data.seconds <= 10) {
                     document.getElementById('timerDisplay').classList.add('urgent');
                 } else {
-                    document.getElementById('timerDisplay').class.classList.remove('urgent');
+                    document.getElementById('timerDisplay').classList.remove('urgent');
                 }
             });
             
@@ -782,18 +819,16 @@
             });
             
             socket.on('selectionConfirmed', (data) => {
-                console.log('Selection confirmed:', data);
                 playerState.balance = data.balance;
                 if (!playerState.selectedCartelas.includes(data.cartela)) {
                     playerState.selectedCartelas.push(data.cartela);
                 }
                 updateBalanceDisplay();
+                updateAvailableCount();
                 updateSelectedCount(playerState.selectedCartelas.length);
                 showToast(data.message, 'success');
                 updateCartelaHighlight(data.cartela, true);
                 loadCartelaGrid(data.cartela);
-                
-                // Keep cartela selection enabled
                 enableCartelaSelection(true);
             });
             
@@ -801,6 +836,7 @@
                 playerState.selectedCartelas = data.selectedCartelas;
                 playerState.balance = data.balance;
                 updateBalanceDisplay();
+                updateAvailableCount();
                 updateSelectedDisplay();
                 refreshCartelaHighlights();
                 enableCartelaSelection(true);
@@ -821,6 +857,7 @@
                 
                 playerState.selectedCartelas = [];
                 updateSelectedDisplay();
+                updateAvailableCount();
                 refreshCartelaHighlights();
             });
             
@@ -837,7 +874,6 @@
                 currentViewingCartela = null;
                 isWatchOnly = false;
                 
-                // RE-ENABLE CARTELA SELECTION FOR NEXT ROUND
                 setTimeout(() => {
                     if (playerState.balance >= 10) {
                         enableCartelaSelection(true);
@@ -847,12 +883,14 @@
                         document.getElementById('cartelaSection').style.display = 'none';
                     }
                     refreshCartelaHighlights();
+                    updateAvailableCount();
                 }, 500);
             });
             
             socket.on('youWon', (data) => {
                 playerState.balance += data.amount;
                 updateBalanceDisplay();
+                updateAvailableCount();
                 showToast(data.message, 'success');
                 playWinSound();
             });
@@ -877,7 +915,7 @@
             grid.innerHTML = '';
             cartelaElements = [];
             
-            for (let i = 1; i <= 400; i++) {
+            for (let i = 1; i <= TOTAL_CARTELAS; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'cartela-item';
                 cell.textContent = i;
@@ -892,17 +930,14 @@
                 cartelaElements.push(cell);
             }
             
-            console.log("Cartela grid created with", cartelaElements.length, "items");
+            updateAvailableCount();
             
-            // Initially enable if game is in selection phase
             if (gameState.status === 'selection' && playerState.balance >= 10 && !isWatchOnly) {
                 enableCartelaSelection(true);
             }
         }
         
         function selectCartela(number) {
-            console.log("Select cartela clicked:", number, "Game status:", gameState.status, "Balance:", playerState.balance);
-            
             if (isWatchOnly) {
                 showToast('You are in Watch Only mode. Cannot select cartelas.', 'warning');
                 return;
@@ -1004,7 +1039,6 @@
             updateTimerDisplay(gameState.timer);
             updateCalledNumbers(gameState.drawnNumbers);
             
-            // Handle section visibility based on game state
             const cartelaSection = document.getElementById('cartelaSection');
             const selectedSection = document.getElementById('selectedSection');
             const bingoSection = document.getElementById('bingoCardSection');
