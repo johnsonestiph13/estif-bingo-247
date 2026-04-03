@@ -193,7 +193,7 @@
         }
         
         .cartela-item.disabled {
-            opacity: 0.4;
+            opacity: 0.5;
             pointer-events: none;
         }
         
@@ -203,7 +203,7 @@
             cursor: not-allowed;
         }
         
-        /* Bingo Card Display (5x5 Grid) */
+        /* Bingo Card Display */
         .bingo-card-section {
             background: rgba(15, 62, 42, 0.95);
             backdrop-filter: blur(10px);
@@ -323,7 +323,6 @@
             font-size: 12px;
         }
         
-        /* Watch Only Section */
         .watch-only-section {
             background: rgba(15, 62, 42, 0.95);
             backdrop-filter: blur(10px);
@@ -344,10 +343,15 @@
             margin-bottom: 15px;
         }
         
-        .watch-only-message {
-            color: #ffaa88;
-            font-size: 14px;
-            margin-bottom: 15px;
+        .btn-watch {
+            background: #f5c542;
+            color: #1a472a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
         }
         
         /* Winner Overlay */
@@ -380,28 +384,10 @@
             margin-bottom: 15px;
         }
         
-        .winner-cartela {
-            font-size: 24px;
-            margin: 10px 0;
-        }
-        
-        .winner-line {
-            font-size: 18px;
-            margin: 10px 0;
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 10px;
-        }
-        
         .winner-reward {
             font-size: 28px;
             font-weight: bold;
             margin: 15px 0;
-        }
-        
-        .next-round-info {
-            margin-top: 15px;
-            font-size: 14px;
         }
         
         /* Toast */
@@ -478,7 +464,7 @@
             <div class="called-numbers" id="calledNumbers"></div>
         </div>
         
-        <!-- Cartela Selection Section (Before Game Starts) -->
+        <!-- Cartela Selection Section -->
         <div class="cartela-section" id="cartelaSection">
             <div class="section-title">
                 <h3>🎲 SELECT YOUR CARTELAS</h3>
@@ -494,17 +480,17 @@
             </div>
         </div>
         
-        <!-- Watch Only Section (For players with insufficient balance) -->
+        <!-- Watch Only Section -->
         <div class="watch-only-section" id="watchOnlySection" style="display: none;">
             <div class="watch-only-badge">👁️ WATCHING ONLY</div>
             <div class="watch-only-message">
                 You have insufficient balance to select cartelas.<br>
                 Watch the game and see the numbers being called!
             </div>
-            <button onclick="enableWatchOnlyMode()" class="btn-watch">🎯 Continue Watching</button>
+            <button class="btn-watch" onclick="enableWatchOnlyMode()">🎯 Continue Watching</button>
         </div>
         
-        <!-- Bingo Card Display (Shows during active game) -->
+        <!-- Bingo Card Display -->
         <div class="bingo-card-section" id="bingoCardSection" style="display: none;">
             <div class="section-title">
                 <h3 id="bingoCardTitle">🎯 Your BINGO Card</h3>
@@ -520,7 +506,7 @@
             <div id="winningLines" style="margin-top: 10px; text-align: center; font-size: 14px; color: #f5c542;"></div>
         </div>
         
-        <!-- Selected Cartelas Section (After Game Starts - Players with selections) -->
+        <!-- Selected Cartelas Section -->
         <div class="cartela-section" id="selectedSection" style="display: none;">
             <div class="section-title">
                 <h3>🎯 YOUR SELECTED CARTELAS</h3>
@@ -539,7 +525,7 @@
         // ==================== CONFIGURATION ====================
         let socket = null;
         let gameState = { status: 'selection', round: 0, timer: 50, drawnNumbers: [] };
-        let playerState = { balance: 0, selectedCartelas: [], username: '' };
+        let playerState = { balance: 100, selectedCartelas: [], username: '' };
         let cartelaElements = [];
         let currentViewingCartela = null;
         let cartelaGrids = {};
@@ -554,7 +540,6 @@
             return "O";
         }
         
-        // Generate a random valid bingo card
         function generateRandomBingoCard() {
             function getRandomNumbers(min, max, count) {
                 const numbers = [];
@@ -635,13 +620,8 @@
                 if (!drawnSet.has(grid[i][i])) diag1 = false;
                 if (!drawnSet.has(grid[i][4 - i])) diag2 = false;
             }
-            if (diag1) winningLines.push("Diagonal (Top-Left to Bottom-Right)");
-            if (diag2) winningLines.push("Diagonal (Top-Right to Bottom-Left)");
-            
-            if (drawnSet.has(grid[0][0]) && drawnSet.has(grid[0][4]) &&
-                drawnSet.has(grid[4][0]) && drawnSet.has(grid[4][4])) {
-                winningLines.push("Four Corners");
-            }
+            if (diag1) winningLines.push("Diagonal ↘");
+            if (diag2) winningLines.push("Diagonal ↙");
             
             return { won: winningLines.length > 0, winningLines };
         }
@@ -660,14 +640,8 @@
             drawnSet.add("FREE");
             
             const { won, winningLines } = checkBingoWin(cartelaId, gameState.drawnNumbers);
-            const winningSet = new Set();
             
             if (won) {
-                for (let row = 0; row < 5; row++) {
-                    for (let col = 0; col < 5; col++) {
-                        winningSet.add(`${row},${col}`);
-                    }
-                }
                 document.getElementById('winningLines').innerHTML = `🏆 WINNING LINES: ${winningLines.join(', ')} 🏆`;
             } else {
                 document.getElementById('winningLines').innerHTML = '';
@@ -679,7 +653,6 @@
                     cell.className = 'bingo-cell';
                     const value = grid[row][col];
                     const isMarked = drawnSet.has(value);
-                    const isWinning = winningSet.has(`${row},${col}`);
                     
                     if (value === "FREE") {
                         cell.textContent = "⭐";
@@ -689,13 +662,51 @@
                     }
                     
                     if (isMarked) cell.classList.add('marked');
-                    if (isWinning && won) cell.classList.add('winning-line');
                     
                     container.appendChild(cell);
                 }
             }
             
             document.getElementById('bingoCardSection').style.display = 'block';
+        }
+        
+        // ==================== ENABLE CARTELA SELECTION ====================
+        function enableCartelaSelection(enable) {
+            console.log("Enable cartela selection:", enable, "Game status:", gameState.status);
+            
+            if (!cartelaElements || cartelaElements.length === 0) {
+                console.log("Cartela elements not loaded yet");
+                return;
+            }
+            
+            cartelaElements.forEach(cell => {
+                const num = parseInt(cell.dataset.number);
+                const isInsufficient = playerState.balance < 10;
+                
+                if (enable && gameState.status === 'selection' && !isWatchOnly) {
+                    cell.classList.remove('disabled');
+                    cell.style.pointerEvents = 'auto';
+                    cell.style.cursor = 'pointer';
+                    cell.style.opacity = '1';
+                    
+                    if (isInsufficient) {
+                        cell.classList.add('insufficient');
+                    } else {
+                        cell.classList.remove('insufficient');
+                    }
+                } else {
+                    cell.classList.add('disabled');
+                    cell.style.pointerEvents = 'none';
+                    cell.style.cursor = 'not-allowed';
+                    cell.style.opacity = '0.5';
+                }
+                
+                if (playerState.selectedCartelas.includes(num)) {
+                    cell.classList.add('selected');
+                } else {
+                    cell.classList.remove('selected');
+                }
+            });
         }
         
         // ==================== SOCKET INITIALIZATION ====================
@@ -708,6 +719,7 @@
             });
             
             socket.on('registered', (data) => {
+                console.log('Registered:', data);
                 playerState.balance = data.balance;
                 playerState.username = data.username;
                 updateBalanceDisplay();
@@ -717,15 +729,24 @@
                     updateGameDisplay();
                 }
                 
-                // Check if player has insufficient balance for cartela selection
-                if (playerState.balance < 10 && (gameState.status === 'selection' || gameState.status === 'countdown')) {
-                    document.getElementById('insufficientBalanceMsg').style.display = 'block';
-                }
+                // Refresh cartela grid with proper enabled state
+                setTimeout(() => {
+                    refreshCartelaHighlights();
+                    enableCartelaSelection(gameState.status === 'selection' && playerState.balance >= 10);
+                }, 100);
             });
             
             socket.on('gameState', (state) => {
+                console.log('Game state update:', state);
                 gameState = state;
                 updateGameDisplay();
+                
+                // Re-enable cartela selection if game is in selection phase
+                if (state.status === 'selection' && !isWatchOnly && playerState.balance >= 10) {
+                    enableCartelaSelection(true);
+                } else if (state.status !== 'selection') {
+                    enableCartelaSelection(false);
+                }
                 
                 if (currentViewingCartela) {
                     displayBingoCard(currentViewingCartela);
@@ -739,7 +760,7 @@
                 if (data.seconds <= 10) {
                     document.getElementById('timerDisplay').classList.add('urgent');
                 } else {
-                    document.getElementById('timerDisplay').classList.remove('urgent');
+                    document.getElementById('timerDisplay').class.classList.remove('urgent');
                 }
             });
             
@@ -748,6 +769,7 @@
                 updateGameDisplay();
                 showToast(`Game started! Round ${data.round}`, 'success');
                 showCartelaSelection(false);
+                enableCartelaSelection(false);
             });
             
             socket.on('numberDrawn', async (data) => {
@@ -757,25 +779,22 @@
                 if (currentViewingCartela) {
                     await displayBingoCard(currentViewingCartela);
                 }
-                
-                if (currentViewingCartela) {
-                    const { won, winningLines } = checkBingoWin(currentViewingCartela, gameState.drawnNumbers);
-                    if (won && !isWatchOnly) {
-                        showWinnerOverlay(currentViewingCartela, winningLines, 0);
-                        playWinSound();
-                    }
-                }
             });
             
             socket.on('selectionConfirmed', (data) => {
+                console.log('Selection confirmed:', data);
                 playerState.balance = data.balance;
-                playerState.selectedCartelas = data.selectedCartelas || playerState.selectedCartelas;
-                playerState.selectedCartelas.push(data.cartela);
+                if (!playerState.selectedCartelas.includes(data.cartela)) {
+                    playerState.selectedCartelas.push(data.cartela);
+                }
                 updateBalanceDisplay();
                 updateSelectedCount(playerState.selectedCartelas.length);
                 showToast(data.message, 'success');
                 updateCartelaHighlight(data.cartela, true);
                 loadCartelaGrid(data.cartela);
+                
+                // Keep cartela selection enabled
+                enableCartelaSelection(true);
             });
             
             socket.on('selectionUpdated', (data) => {
@@ -784,14 +803,16 @@
                 updateBalanceDisplay();
                 updateSelectedDisplay();
                 refreshCartelaHighlights();
+                enableCartelaSelection(true);
             });
             
             socket.on('roundEnded', (data) => {
                 gameState.status = 'ended';
                 updateGameDisplay();
+                enableCartelaSelection(false);
                 
                 if (data.winners && data.winners.includes(playerState.username) && !isWatchOnly) {
-                    showWinnerOverlay(null, null, data.winnerReward);
+                    showWinnerOverlay(data.winnerReward);
                     playWinSound();
                 } else if (data.winners && data.winners.length > 0) {
                     showToast(`🎉 Winners: ${data.winners.join(', ')}. Each wins ${data.winnerReward.toFixed(2)} ETB!`, 'success');
@@ -816,9 +837,17 @@
                 currentViewingCartela = null;
                 isWatchOnly = false;
                 
-                if (playerState.balance < 10) {
-                    document.getElementById('insufficientBalanceMsg').style.display = 'block';
-                }
+                // RE-ENABLE CARTELA SELECTION FOR NEXT ROUND
+                setTimeout(() => {
+                    if (playerState.balance >= 10) {
+                        enableCartelaSelection(true);
+                    } else {
+                        document.getElementById('insufficientBalanceMsg').style.display = 'block';
+                        document.getElementById('watchOnlySection').style.display = 'block';
+                        document.getElementById('cartelaSection').style.display = 'none';
+                    }
+                    refreshCartelaHighlights();
+                }, 500);
             });
             
             socket.on('youWon', (data) => {
@@ -839,6 +868,7 @@
             isWatchOnly = true;
             document.getElementById('watchOnlySection').style.display = 'none';
             document.getElementById('cartelaSection').style.display = 'none';
+            enableCartelaSelection(false);
             showToast('You are now in Watch Only mode. Enjoy the game!', 'info');
         }
         
@@ -852,27 +882,34 @@
                 cell.className = 'cartela-item';
                 cell.textContent = i;
                 cell.dataset.number = i;
+                cell.style.cursor = 'pointer';
                 
-                if (playerState.balance < 10) {
-                    cell.classList.add('insufficient');
-                    cell.onclick = () => showToast('Insufficient balance! Use Watch Only mode to observe the game.', 'warning');
-                } else {
-                    cell.onclick = () => selectCartela(i);
-                }
+                cell.onclick = (function(num) {
+                    return function() { selectCartela(num); };
+                })(i);
                 
                 grid.appendChild(cell);
                 cartelaElements.push(cell);
             }
+            
+            console.log("Cartela grid created with", cartelaElements.length, "items");
+            
+            // Initially enable if game is in selection phase
+            if (gameState.status === 'selection' && playerState.balance >= 10 && !isWatchOnly) {
+                enableCartelaSelection(true);
+            }
         }
         
         function selectCartela(number) {
+            console.log("Select cartela clicked:", number, "Game status:", gameState.status, "Balance:", playerState.balance);
+            
             if (isWatchOnly) {
                 showToast('You are in Watch Only mode. Cannot select cartelas.', 'warning');
                 return;
             }
             
             if (gameState.status !== 'selection') {
-                showToast('Cannot select now. Game already started!', 'error');
+                showToast(`Cannot select now. Game status: ${gameState.status}. Please wait for next round.`, 'warning');
                 return;
             }
             
@@ -885,16 +922,12 @@
                 }
                 if (playerState.balance < 10) {
                     showToast(`Insufficient balance! Need 10 ETB. You have ${playerState.balance} ETB.`, 'error');
-                    showWatchOnlyOption();
+                    document.getElementById('watchOnlySection').style.display = 'block';
+                    document.getElementById('cartelaSection').style.display = 'none';
                     return;
                 }
                 socket.emit('selectCartela', { cartelaNumber: number });
             }
-        }
-        
-        function showWatchOnlyOption() {
-            document.getElementById('watchOnlySection').style.display = 'block';
-            document.getElementById('cartelaSection').style.display = 'none';
         }
         
         function updateCartelaHighlight(number, isSelected) {
@@ -906,6 +939,7 @@
         }
         
         function refreshCartelaHighlights() {
+            if (!cartelaElements) return;
             cartelaElements.forEach(cell => {
                 const num = parseInt(cell.dataset.number);
                 if (playerState.selectedCartelas.includes(num)) {
@@ -954,8 +988,6 @@
         function updateGameDisplay() {
             const roundEl = document.getElementById('roundDisplay');
             const statusEl = document.getElementById('statusDisplay');
-            const cartelaSection = document.getElementById('cartelaSection');
-            const selectedSection = document.getElementById('selectedSection');
             
             if (roundEl) roundEl.textContent = `Round ${gameState.round}`;
             if (statusEl) {
@@ -972,31 +1004,42 @@
             updateTimerDisplay(gameState.timer);
             updateCalledNumbers(gameState.drawnNumbers);
             
-            if (gameState.status === 'selection' && !isWatchOnly && playerState.balance >= 10) {
-                cartelaSection.style.display = 'block';
-                selectedSection.style.display = 'none';
-                document.getElementById('bingoCardSection').style.display = 'none';
-                document.getElementById('watchOnlySection').style.display = 'none';
-                enableCartelaSelection(true);
-            } else if (gameState.status === 'selection' && (isWatchOnly || playerState.balance < 10)) {
-                cartelaSection.style.display = 'none';
-                selectedSection.style.display = 'none';
-                document.getElementById('watchOnlySection').style.display = 'block';
-                enableCartelaSelection(false);
+            // Handle section visibility based on game state
+            const cartelaSection = document.getElementById('cartelaSection');
+            const selectedSection = document.getElementById('selectedSection');
+            const bingoSection = document.getElementById('bingoCardSection');
+            const watchOnlySection = document.getElementById('watchOnlySection');
+            
+            if (gameState.status === 'selection') {
+                if (isWatchOnly || playerState.balance < 10) {
+                    if (cartelaSection) cartelaSection.style.display = 'none';
+                    if (selectedSection) selectedSection.style.display = 'none';
+                    if (watchOnlySection) watchOnlySection.style.display = 'block';
+                    if (bingoSection) bingoSection.style.display = 'none';
+                } else {
+                    if (cartelaSection) cartelaSection.style.display = 'block';
+                    if (selectedSection) selectedSection.style.display = 'none';
+                    if (watchOnlySection) watchOnlySection.style.display = 'none';
+                    if (bingoSection) bingoSection.style.display = 'none';
+                    enableCartelaSelection(true);
+                }
             } else if (gameState.status === 'active') {
-                cartelaSection.style.display = 'none';
-                selectedSection.style.display = !isWatchOnly && playerState.selectedCartelas.length > 0 ? 'block' : 'none';
-                document.getElementById('watchOnlySection').style.display = 'none';
-                document.getElementById('bingoCardSection').style.display = 'block';
-                if (!isWatchOnly && playerState.selectedCartelas.length > 0 && currentViewingCartela === null && playerState.selectedCartelas[0]) {
+                if (cartelaSection) cartelaSection.style.display = 'none';
+                if (watchOnlySection) watchOnlySection.style.display = 'none';
+                if (selectedSection) selectedSection.style.display = !isWatchOnly && playerState.selectedCartelas.length > 0 ? 'block' : 'none';
+                if (bingoSection) bingoSection.style.display = 'block';
+                
+                if (!isWatchOnly && playerState.selectedCartelas.length > 0 && !currentViewingCartela && playerState.selectedCartelas[0]) {
                     viewCartelaCard(playerState.selectedCartelas[0]);
-                } else if (isWatchOnly && currentViewingCartela === null) {
+                } else if (isWatchOnly && !currentViewingCartela) {
                     viewCartelaCard(1);
                 }
                 enableCartelaSelection(false);
             } else {
-                cartelaSection.style.display = 'block';
-                selectedSection.style.display = 'none';
+                if (cartelaSection) cartelaSection.style.display = 'block';
+                if (selectedSection) selectedSection.style.display = 'none';
+                if (watchOnlySection) watchOnlySection.style.display = 'none';
+                if (bingoSection) bingoSection.style.display = 'none';
                 enableCartelaSelection(false);
             }
         }
@@ -1054,16 +1097,6 @@
             if (countEl) countEl.textContent = `${count}/2`;
         }
         
-        function enableCartelaSelection(enable) {
-            cartelaElements.forEach(cell => {
-                if (enable && !cell.classList.contains('insufficient')) {
-                    cell.classList.remove('disabled');
-                } else {
-                    cell.classList.add('disabled');
-                }
-            });
-        }
-        
         function showCartelaSelection(show) {
             const cartelaSection = document.getElementById('cartelaSection');
             const selectedSection = document.getElementById('selectedSection');
@@ -1074,29 +1107,16 @@
             }
         }
         
-        function showWinnerOverlay(cartelaId, winningLines, reward) {
+        function showWinnerOverlay(reward) {
             const overlay = document.createElement('div');
             overlay.className = 'winner-overlay';
-            
-            let content = `
+            overlay.innerHTML = `
                 <div class="winner-card">
                     <div class="winner-title">🎉 BINGO! 🎉</div>
+                    <div class="winner-reward">💰 You won ${reward.toFixed(2)} ETB!</div>
+                    <div class="next-round-info">⏳ Auto-starting next game in 6 seconds...</div>
+                </div>
             `;
-            
-            if (cartelaId) {
-                content += `<div class="winner-cartela">🔒 Winning Cartela: ${cartelaId}</div>`;
-            }
-            if (winningLines && winningLines.length > 0) {
-                content += `<div class="winner-line">🏆 ${winningLines.join(', ')} 🏆</div>`;
-            }
-            if (reward > 0) {
-                content += `<div class="winner-reward">💰 You won ${reward.toFixed(2)} ETB!</div>`;
-            }
-            
-            content += `<div class="next-round-info">⏳ Auto-starting next game in 6 seconds...</div>
-                    </div>`;
-            
-            overlay.innerHTML = content;
             document.body.appendChild(overlay);
             
             setTimeout(() => {
