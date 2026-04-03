@@ -46,7 +46,7 @@
         
         .stats-container {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
             flex-wrap: wrap;
         }
@@ -86,6 +86,34 @@
             font-size: 20px;
             font-weight: bold;
             color: #ff9800;
+        }
+        
+        /* Winner Reward Pool Card */
+        .reward-pool-card {
+            text-align: center;
+            background: linear-gradient(135deg, #f5c54220, #ff980020);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid #f5c542;
+            animation: pulse-glow 2s infinite;
+        }
+        
+        .reward-pool-label {
+            font-size: 10px;
+            opacity: 0.9;
+            color: #f5c542;
+        }
+        
+        .reward-pool-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #f5c542;
+            text-shadow: 0 0 5px rgba(245, 197, 66, 0.5);
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { border-color: #f5c542; box-shadow: 0 0 5px rgba(245, 197, 66, 0.3); }
+            50% { border-color: #ff9800; box-shadow: 0 0 15px rgba(245, 197, 66, 0.6); }
         }
         
         /* Game Display */
@@ -470,8 +498,8 @@
             .bingo-cell { padding: 8px 3px; font-size: 12px; }
             .bingo-letter { font-size: 18px; }
             .stats-container { width: 100%; justify-content: space-between; }
-            .balance-card, .total-cartelas-card { padding: 5px 12px; }
-            .balance-amount, .total-cartelas-value { font-size: 16px; }
+            .balance-card, .total-cartelas-card, .reward-pool-card { padding: 5px 12px; }
+            .balance-amount, .total-cartelas-value, .reward-pool-value { font-size: 16px; }
         }
     </style>
 </head>
@@ -483,6 +511,11 @@
                 <div class="balance-card">
                     <div class="balance-label">💰 BALANCE</div>
                     <div class="balance-amount" id="balanceAmount">0</div>
+                    <span style="font-size: 10px;">ETB</span>
+                </div>
+                <div class="reward-pool-card">
+                    <div class="reward-pool-label">🏆 WINNER REWARD POOL</div>
+                    <div class="reward-pool-value" id="rewardPoolAmount">0</div>
                     <span style="font-size: 10px;">ETB</span>
                 </div>
                 <div class="total-cartelas-card">
@@ -503,11 +536,12 @@
         <div class="cartela-section" id="cartelaSection">
             <div class="section-title">
                 <h3>🎲 SELECT YOUR CARTELAS</h3>
-                <p>Max 2 cartelas | 10 ETB each</p>
+                <p>Max 2 cartelas | 10 ETB each | Win up to <span id="winPercentDisplay">75</span>% of reward pool</p>
             </div>
             <div class="selection-stats">
                 <span>Selected: <strong id="selectedCount">0/2</strong></span>
                 <span>Available: <strong id="availableCount">400</strong> cartelas</span>
+                <span>🎯 Win %: <strong id="winPercentValue">75</strong>%</span>
             </div>
             <div class="cartela-grid" id="cartelaGrid"></div>
             <div id="insufficientBalanceMsg" style="text-align: center; margin-top: 15px; color: #ffaa88; display: none;">
@@ -559,7 +593,7 @@
     <script>
         // ==================== CONFIGURATION ====================
         let socket = null;
-        let gameState = { status: 'selection', round: 0, timer: 50, drawnNumbers: [] };
+        let gameState = { status: 'selection', round: 0, timer: 50, drawnNumbers: [], totalBet: 0, winnerReward: 0, winPercentage: 75 };
         let playerState = { balance: 100, selectedCartelas: [], username: '' };
         let cartelaElements = [];
         let currentViewingCartela = null;
@@ -583,6 +617,20 @@
             const availableEl = document.getElementById('availableCount');
             if (availableEl) {
                 availableEl.textContent = availableCount;
+            }
+        }
+        
+        function updateRewardPool() {
+            const rewardEl = document.getElementById('rewardPoolAmount');
+            const winPercentEl = document.getElementById('winPercentDisplay');
+            const winPercentValueEl = document.getElementById('winPercentValue');
+            
+            if (rewardEl && gameState.winnerReward !== undefined) {
+                rewardEl.textContent = gameState.winnerReward.toFixed(2);
+            }
+            if (winPercentEl && gameState.winPercentage) {
+                winPercentEl.textContent = gameState.winPercentage;
+                winPercentValueEl.textContent = gameState.winPercentage;
             }
         }
         
@@ -767,6 +815,7 @@
                 if (data.gameState) {
                     gameState = data.gameState;
                     updateGameDisplay();
+                    updateRewardPool();
                 }
                 
                 setTimeout(() => {
@@ -778,6 +827,7 @@
             socket.on('gameState', (state) => {
                 gameState = state;
                 updateGameDisplay();
+                updateRewardPool();
                 
                 if (state.status === 'selection' && !isWatchOnly && playerState.balance >= 10) {
                     enableCartelaSelection(true);
@@ -803,8 +853,12 @@
             
             socket.on('gameStarted', (data) => {
                 gameState.status = 'active';
+                gameState.totalBet = data.totalBet;
+                gameState.winnerReward = data.winnerReward;
+                gameState.winPercentage = data.winPercentage;
                 updateGameDisplay();
-                showToast(`Game started! Round ${data.round}`, 'success');
+                updateRewardPool();
+                showToast(`Game started! Round ${data.round} - Prize Pool: ${data.winnerReward} ETB`, 'success');
                 showCartelaSelection(false);
                 enableCartelaSelection(false);
             });
@@ -866,7 +920,10 @@
                 gameState.timer = data.timer;
                 gameState.status = 'selection';
                 gameState.drawnNumbers = [];
+                gameState.totalBet = 0;
+                gameState.winnerReward = 0;
                 updateGameDisplay();
+                updateRewardPool();
                 showCartelaSelection(true);
                 showToast(data.message, 'info');
                 document.getElementById('calledNumbers').innerHTML = '';
