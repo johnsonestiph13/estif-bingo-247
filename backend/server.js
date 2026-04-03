@@ -57,11 +57,9 @@ try {
     if (fs.existsSync(CARTELA_DATA_FILE)) {
         cartelaData = JSON.parse(fs.readFileSync(CARTELA_DATA_FILE, 'utf8'));
         console.log(`✅ Loaded ${Object.keys(cartelaData).length} cartelas from file`);
-    } else {
-        console.log("⚠️ No cartela data file found, will generate on demand");
     }
 } catch (err) {
-    console.log("⚠️ Error loading cartela data:", err.message);
+    console.log("⚠️ No cartela data file found, will generate on demand");
 }
 
 // Save data function
@@ -116,7 +114,7 @@ let adminTokens = new Map();
 
 // ==================== CARTELA GRID FUNCTIONS ====================
 
-// Generate a random valid bingo card (for demo purposes)
+// Generate a random valid bingo card
 function generateRandomBingoCard() {
     function getRandomNumbers(min, max, count) {
         const numbers = [];
@@ -139,16 +137,13 @@ function generateRandomBingoCard() {
     // Set FREE space in center (row 2, col 2 - zero-indexed)
     nNumbers[2] = "FREE";
     
-    return {
-        id: null,
-        grid: [
-            [bNumbers[0], iNumbers[0], nNumbers[0], gNumbers[0], oNumbers[0]],
-            [bNumbers[1], iNumbers[1], nNumbers[1], gNumbers[1], oNumbers[1]],
-            [bNumbers[2], iNumbers[2], nNumbers[2], gNumbers[2], oNumbers[2]],
-            [bNumbers[3], iNumbers[3], nNumbers[3], gNumbers[3], oNumbers[3]],
-            [bNumbers[4], iNumbers[4], nNumbers[4], gNumbers[4], oNumbers[4]]
-        ]
-    };
+    return [
+        [bNumbers[0], iNumbers[0], nNumbers[0], gNumbers[0], oNumbers[0]],
+        [bNumbers[1], iNumbers[1], nNumbers[1], gNumbers[1], oNumbers[1]],
+        [bNumbers[2], iNumbers[2], nNumbers[2], gNumbers[2], oNumbers[2]],
+        [bNumbers[3], iNumbers[3], nNumbers[3], gNumbers[3], oNumbers[3]],
+        [bNumbers[4], iNumbers[4], nNumbers[4], gNumbers[4], oNumbers[4]]
+    ];
 }
 
 // Get or generate cartela grid
@@ -158,11 +153,10 @@ function getCartelaGrid(cartelaId) {
     }
     
     // Generate new cartela
-    const newCartela = generateRandomBingoCard();
-    newCartela.id = cartelaId;
-    cartelaData[cartelaId] = newCartela;
+    const grid = generateRandomBingoCard();
+    cartelaData[cartelaId] = { id: cartelaId, grid: grid };
     saveCartelaData();
-    return newCartela.grid;
+    return grid;
 }
 
 // Check for BINGO wins on a specific cartela
@@ -519,7 +513,7 @@ function endRound(winnerSocketIds, winnerDetails = []) {
         const detail = winnerDetails.find(d => d.socketId === socketId);
         
         if (player) {
-            // Add reward to player balance
+            // Add reward to player balance (AUTOMATIC)
             player.balance += perWinnerReward;
             player.totalWon = (player.totalWon || 0) + perWinnerReward;
             player.gamesWon = (player.gamesWon || 0) + 1;
@@ -534,7 +528,8 @@ function endRound(winnerSocketIds, winnerDetails = []) {
                 amount: perWinnerReward,
                 cartelaId: detail?.cartelaId,
                 winningLines: detail?.winningLines,
-                message: `🎉 Congratulations! You won ${perWinnerReward.toFixed(2)} ETB!`
+                newBalance: player.balance,
+                message: `🎉 Congratulations! You won ${perWinnerReward.toFixed(2)} ETB! New balance: ${player.balance.toFixed(2)} ETB`
             });
             
             // Record transaction
@@ -589,6 +584,7 @@ function endRound(winnerSocketIds, winnerDetails = []) {
     
     broadcastGameState();
     scheduleNextRound();
+    saveData();
 }
 
 function scheduleNextRound() {
@@ -686,20 +682,19 @@ function verifyAdminToken(req, res, next) {
 
 // ==================== CARTELA API ENDPOINTS ====================
 
-// Get cartela grid
+// Get cartela grid (public - no auth needed for players)
 app.get("/api/cartela/:id", (req, res) => {
     const id = parseInt(req.params.id);
+    if (id < 1 || id > 400) {
+        return res.status(400).json({ success: false, message: "Invalid cartela ID" });
+    }
     const grid = getCartelaGrid(id);
     res.json({ success: true, cartelaId: id, grid });
 });
 
-// Get all cartelas (for admin)
-app.get("/api/admin/cartelas", verifyAdminToken, (req, res) => {
-    res.json({ success: true, cartelas: cartelaData, count: Object.keys(cartelaData).length });
-});
-
 // ==================== ADMIN API ENDPOINTS ====================
 
+// Get admin stats
 app.get("/api/admin/stats", verifyAdminToken, (req, res) => {
     const players = Array.from(gameState.players.values());
     const totalBalance = players.reduce((sum, p) => sum + (p.balance || 0), 0);
@@ -721,6 +716,7 @@ app.get("/api/admin/stats", verifyAdminToken, (req, res) => {
     });
 });
 
+// Update win percentage
 app.post("/api/admin/win-percentage", verifyAdminToken, (req, res) => {
     const { percentage } = req.body;
     
@@ -733,6 +729,7 @@ app.post("/api/admin/win-percentage", verifyAdminToken, (req, res) => {
     res.json({ success: true, message: `Win percentage updated to ${percentage}%` });
 });
 
+// Force start game
 app.post("/api/admin/start-game", verifyAdminToken, (req, res) => {
     if (gameState.status === 'selection') {
         if (selectionTimer) {
@@ -746,6 +743,7 @@ app.post("/api/admin/start-game", verifyAdminToken, (req, res) => {
     }
 });
 
+// Force end game
 app.post("/api/admin/end-game", verifyAdminToken, (req, res) => {
     if (gameState.status === 'active') {
         if (drawTimer) {
@@ -759,6 +757,7 @@ app.post("/api/admin/end-game", verifyAdminToken, (req, res) => {
     }
 });
 
+// Reset game
 app.post("/api/admin/reset-game", verifyAdminToken, (req, res) => {
     if (selectionTimer) clearInterval(selectionTimer);
     if (drawTimer) clearInterval(drawTimer);
@@ -790,7 +789,7 @@ app.post("/api/admin/reset-game", verifyAdminToken, (req, res) => {
     res.json({ success: true, message: "Game reset successfully!" });
 });
 
-// Add player balance (admin can ADD only, not deduct)
+// Add player balance (admin can ADD)
 app.post("/api/admin/add-balance", verifyAdminToken, (req, res) => {
     const { socketId, amount } = req.body;
     
@@ -1133,7 +1132,7 @@ io.on("connection", (socket) => {
     });
     
     // Get cartela grid (for player to view)
-    socket.on("getCartelaGrid", (data, callback) => {
+    socket.on("getCartelaGrid", async (data, callback) => {
         const grid = getCartelaGrid(data.cartelaId);
         if (callback) {
             callback({ success: true, cartelaId: data.cartelaId, grid });
