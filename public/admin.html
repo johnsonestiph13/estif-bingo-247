@@ -66,9 +66,9 @@
         .transaction-remove { color: #f44336; }
         
         /* Winner Display Enhancement */
-        .winner-detail { font-size: 12px; color: #ffaa33; margin-top: 4px; }
         .winner-cartela-badge { background: #ff9800; color: #1a472a; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-right: 5px; }
         .winner-pattern-badge { background: #4caf50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; display: inline-block; }
+        .no-data-message { text-align: center; padding: 40px; color: #ffaa88; font-size: 16px; }
         
         /* Modal */
         .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -153,7 +153,7 @@
                     <thead>
                         <tr><th>Phone</th><th>Username</th><th>Balance (ETB)</th><th>Total Added</th><th>Registered</th><th>Actions</th></tr>
                     </thead>
-                    <tbody id="playersTableBody"><tr><td colspan="6">Loading...</tr></table>
+                    <tbody id="playersTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -198,7 +198,7 @@
                 <h3>📨 Pending Balance Requests</h3>
                 <table id="requestsTable">
                     <thead><tr><th>Player</th><th>Amount</th><th>Message</th><th>Date</th><th>Actions</th></tr></thead>
-                    <tbody id="requestsTableBody"><tr><td colspan="5">Loading...</tr></tr>
+                    <tbody id="requestsTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -209,7 +209,7 @@
                 <h3>📝 Pending Phone Registrations</h3>
                 <table id="regTable">
                     <thead><tr><th>Phone</th><th>Requested At</th><th>Actions</th></tr></thead>
-                    <tbody id="regTableBody"><tr><td colspan="3">Loading...</tr></tr>
+                    <tbody id="regTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -236,22 +236,31 @@
             <div id="reportSummary" class="stats-grid"></div>
             <div class="table-container">
                 <h3>💰 Commission Per Round</h3>
-                <table id="commissionTable">
-                    <thead>
-                        <tr>
-                            <th>Round</th>
-                            <th>Date</th>
-                            <th>Total Pool</th>
-                            <th>Winner Reward</th>
-                            <th>Commission</th>
-                            <th>Commission %</th>
-                            <th>Winner(s)</th>
-                            <th>Winner Cartela(s)</th>
-                            <th>Winning Pattern(s)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="commissionTableBody"><tr><td colspan="9">Select a report and click Generate</tr></table>
-                </table>
+                <div style="overflow-x: auto;">
+                    <table id="commissionTable">
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Date</th>
+                                <th>Total Pool (ETB)</th>
+                                <th>Winner Reward (ETB)</th>
+                                <th>Commission (ETB)</th>
+                                <th>Commission %</th>
+                                <th>Winner(s)</th>
+                                <th>Winner Cartela(s)</th>
+                                <th>Winning Pattern(s)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commissionTableBody">
+                            <tr><td colspan="9" style="text-align: center; padding: 40px;">
+                                <div class="no-data-message">
+                                    📊 No commission data available yet<br>
+                                    <small>Start a game and complete a round to see commission details here.</small>
+                                </div>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -329,7 +338,6 @@
         socket.on('newBalanceRequest', () => { if (document.getElementById('requestsTab').classList.contains('active')) loadBalanceRequests(); showToast('New balance request!', 'info'); });
         socket.on('newPendingRegistration', () => { if (document.getElementById('registrationsTab').classList.contains('active')) loadPendingRegistrations(); showToast('New registration request!', 'info'); });
         socket.on('balanceUpdated', () => { refreshData(); if (currentSearchPlayer) searchPlayer(); });
-        // Enhanced: Listen for round ended with winner details
         socket.on('roundEnded', (data) => {
             refreshData();
             if (data.winnerCartelas && data.winnerCartelas.length > 0) {
@@ -339,6 +347,10 @@
                 });
                 console.log(winnerMsg);
                 showToast(`🎉 Winners: ${data.winners.join(', ')} - Each wins ${data.winnerReward.toFixed(2)} ETB`, 'success');
+                // Refresh report if on reports tab
+                if (document.getElementById('reportsTab').classList.contains('active')) {
+                    loadReport();
+                }
             } else if (data.winners && data.winners.length > 0) {
                 showToast(`🎉 Winners: ${data.winners.join(', ')} - Each wins ${data.winnerReward.toFixed(2)} ETB`, 'success');
             } else {
@@ -386,7 +398,7 @@
                 const tbody = document.getElementById('playersTableBody');
                 tbody.innerHTML = '';
                 if (!data.players.length) {
-                    tbody.innerHTML = '<tr><td colspan="6">No players registered</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No players registered</td></tr>';
                     return;
                 }
                 data.players.forEach(p => {
@@ -424,7 +436,6 @@
                 document.getElementById('detailBalance').textContent = data.player.balance.toFixed(2);
                 document.getElementById('detailTotalAdded').textContent = (data.player.totalManualAdded || 0).toFixed(2);
                 document.getElementById('detailRegistered').textContent = new Date(data.player.registeredAt).toLocaleString();
-                // Load transaction history
                 const txnRes = await fetch(`/api/admin/player-transactions/${encodeURIComponent(phone)}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
                 const txnData = await txnRes.json();
                 const historyDiv = document.getElementById('transactionHistory');
@@ -490,7 +501,7 @@
             const res = await fetch('/api/admin/balance-requests', { headers: { 'Authorization': `Bearer ${adminToken}` } });
             const data = await res.json();
             const tbody = document.getElementById('requestsTableBody');
-            if (!data.requests?.length) { tbody.innerHTML = '<tr><td colspan="5">No pending requests</td></tr>'; return; }
+            if (!data.requests?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No pending requests</td></tr>'; return; }
             tbody.innerHTML = '';
             data.requests.forEach(req => {
                 const row = tbody.insertRow();
@@ -526,7 +537,7 @@
             const res = await fetch('/api/admin/pending-registrations', { headers: { 'Authorization': `Bearer ${adminToken}` } });
             const data = await res.json();
             const tbody = document.getElementById('regTableBody');
-            if (!data.pending?.length) { tbody.innerHTML = '<tr><td colspan="3">No pending registrations</td></tr>'; return; }
+            if (!data.pending?.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No pending registrations</td></tr>'; return; }
             tbody.innerHTML = '';
             data.pending.forEach(reg => {
                 const row = tbody.insertRow();
@@ -639,32 +650,47 @@
         try {
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${adminToken}` } });
             const data = await res.json();
-            if (data.success) displayReport(data.report, type);
-            else showToast('No data available', 'error');
-        } catch (e) { showToast('Error loading report', 'error'); }
+            if (data.success) {
+                displayReport(data.report, type);
+            } else {
+                showToast('No data available', 'error');
+                document.getElementById('commissionTableBody').innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;"><div class="no-data-message">📊 No commission data available yet<br><small>Complete a game round to see data here.</small></div></td></tr>';
+            }
+        } catch (e) { 
+            showToast('Error loading report', 'error');
+            document.getElementById('commissionTableBody').innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;"><div class="no-data-message">❌ Error loading report data</div></td></tr>';
+        }
     }
 
     function displayReport(report, type) {
         const summaryDiv = document.getElementById('reportSummary');
         if (type === 'commission') {
-            summaryDiv.innerHTML = `
-                <div class="stat-card"><div class="stat-value">${report.summary?.totalGames || 0}</div><div>Total Games</div></div>
-                <div class="stat-card"><div class="stat-value">${report.summary?.totalCommission || 0}</div><div>Total Commission</div></div>
-                <div class="stat-card"><div class="stat-value">${report.summary?.averageCommissionPercentage || 0}%</div><div>Avg Commission %</div></div>
-            `;
+            if (report.summary) {
+                summaryDiv.innerHTML = `
+                    <div class="stat-card"><div class="stat-value">${report.summary.totalGames || 0}</div><div>Total Games</div></div>
+                    <div class="stat-card"><div class="stat-value">${report.summary.totalCommission || 0}</div><div>Total Commission (ETB)</div></div>
+                    <div class="stat-card"><div class="stat-value">${report.summary.averageCommissionPercentage || 0}%</div><div>Avg Commission %</div></div>
+                `;
+            } else {
+                summaryDiv.innerHTML = `<div class="stat-card"><div class="stat-value" colspan="3">No data available</div></div>`;
+            }
         } else {
             summaryDiv.innerHTML = `
                 <div class="stat-card"><div class="stat-value">${report.totalGames || 0}</div><div>Total Games</div></div>
                 <div class="stat-card"><div class="stat-value">${report.totalBet || 0}</div><div>Total Bet (ETB)</div></div>
                 <div class="stat-card"><div class="stat-value">${report.totalWon || 0}</div><div>Total Won (ETB)</div></div>
-                <div class="stat-card"><div class="stat-value">${report.totalCommission || 0}</div><div>Total Commission</div></div>
+                <div class="stat-card"><div class="stat-value">${report.totalCommission || 0}</div><div>Total Commission (ETB)</div></div>
             `;
         }
         
-        // Enhanced: Display winner cartelas and patterns in commission table
-        const commissionData = type === 'commission' ? report.commissionByRound : (report.commissionPerRound || []);
+        const commissionData = type === 'commission' ? (report.commissionByRound || []) : (report.commissionPerRound || []);
         const tbody = document.getElementById('commissionTableBody');
-        if (!commissionData.length) { tbody.innerHTML = '<tr><td colspan="9">No data available</td></tr>'; return; }
+        
+        if (!commissionData || commissionData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;"><div class="no-data-message">📊 No commission data available yet<br><small>Complete a game round to see commission details here.</small></div></td></tr>';
+            return;
+        }
+        
         tbody.innerHTML = '';
         commissionData.forEach(c => {
             const row = tbody.insertRow();
@@ -675,7 +701,6 @@
             row.insertCell(4).textContent = (c.adminCommission || 0).toFixed(2);
             row.insertCell(5).textContent = c.commissionPercentage + '%';
             
-            // Enhanced winner display with cartela numbers and patterns
             let winnersHtml = '-';
             let cartelasHtml = '-';
             let patternsHtml = '-';
