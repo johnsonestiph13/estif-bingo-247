@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Estif Bingo – Global Edition</title>
+    <title>Estif Bingo – Multi-Device Sync</title>
     <style>
         * {
             margin: 0;
@@ -87,6 +87,25 @@
             opacity: 0.7;
         }
 
+        /* Device Status Indicator */
+        .device-status {
+            background: #2a5a3e;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .device-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 1s infinite;
+        }
+
         /* Game Display */
         .game-display {
             background: rgba(15, 62, 42, 0.95);
@@ -130,18 +149,9 @@
             font-weight: bold;
         }
 
-        .status-badge.selection {
-            background: #2196f3;
-        }
-
-        .status-badge.active {
-            background: #4caf50;
-            animation: pulse 1s infinite;
-        }
-
-        .status-badge.ended {
-            background: #9c27b0;
-        }
+        .status-badge.selection { background: #2196f3; }
+        .status-badge.active { background: #4caf50; animation: pulse 1s infinite; }
+        .status-badge.ended { background: #9c27b0; }
 
         .called-numbers {
             display: flex;
@@ -534,18 +544,9 @@
             font-weight: 500;
         }
 
-        .toast.success {
-            background: #4caf50;
-        }
-
-        .toast.error {
-            background: #f44336;
-        }
-
-        .toast.warning {
-            background: #ff9800;
-            color: #1a472a;
-        }
+        .toast.success { background: #4caf50; }
+        .toast.error { background: #f44336; }
+        .toast.warning { background: #ff9800; color: #1a472a; }
 
         .footer {
             text-align: center;
@@ -579,19 +580,9 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #0f3e2a;
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #f5c542;
-            border-radius: 10px;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f3e2a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #f5c542; border-radius: 10px; }
 
         @media (max-width: 600px) {
             body { padding: 12px; }
@@ -626,6 +617,10 @@
             </div>
             <button id="requestBalanceBtn" class="request-btn" style="display: none;">💰 Request</button>
         </div>
+        <div class="device-status" id="deviceStatus" style="display: none;">
+            <div class="device-dot"></div>
+            <span>Multi-Device Sync Active</span>
+        </div>
     </div>
 
     <!-- Registration Screen -->
@@ -640,7 +635,6 @@
 
     <!-- Game UI -->
     <div id="gameUI" style="display: none;">
-        <!-- Game Display -->
         <div class="game-display">
             <div class="round-badge" id="roundDisplay">Round --</div>
             <div class="timer" id="timerDisplay">--:--</div>
@@ -648,7 +642,6 @@
             <div class="called-numbers" id="calledNumbers"></div>
         </div>
 
-        <!-- Cartela Selection -->
         <div class="cartela-section" id="cartelaSection">
             <div class="section-title">
                 <h3>🎲 SELECT YOUR CARTELAS</h3>
@@ -665,17 +658,14 @@
             </div>
         </div>
 
-        <!-- Watch Only -->
         <div class="watch-only-section" id="watchOnlySection" style="display: none;">
             <div class="watch-only-badge">👁️ WATCHING ONLY</div>
             <p>Insufficient balance. Watch the global game live!</p>
             <button class="btn-watch" onclick="enableWatchOnlyMode()">Continue Watching</button>
         </div>
 
-        <!-- Bingo Cards Container - SIDE BY SIDE for multiple cartelas -->
         <div id="bingoCardsContainer" class="bingo-cards-container"></div>
 
-        <!-- Selected Cartelas (during active game) -->
         <div class="cartela-section" id="selectedSection" style="display: none;">
             <div class="section-title">
                 <h3>🎯 YOUR SELECTED CARTELAS</h3>
@@ -686,7 +676,7 @@
     </div>
 
     <div class="footer">
-        <p>Estif Bingo Global © 2025 | 24/7 Worldwide Gameplay</p>
+        <p>Estif Bingo Global © 2025 | Multi-Device Sync | 24/7 Worldwide Gameplay</p>
     </div>
 </div>
 
@@ -703,6 +693,7 @@
     let audioCache = {};
     let registered = false;
     let pendingApproval = false;
+    let deviceId = Math.random().toString(36).substring(7);
     const TOTAL_CARTELAS = 400;
     const BET_AMOUNT = 10;
 
@@ -713,6 +704,7 @@
     const registerBtn = document.getElementById('registerBtn');
     const regMessage = document.getElementById('regMessage');
     const bingoCardsContainer = document.getElementById('bingoCardsContainer');
+    const deviceStatus = document.getElementById('deviceStatus');
 
     // ==================== HELPER FUNCTIONS ====================
     const getBingoLetter = (n) => n <= 15 ? "B" : n <= 30 ? "I" : n <= 45 ? "N" : n <= 60 ? "G" : "O";
@@ -796,7 +788,6 @@
         return { won: lines.length > 0, winningLines: lines };
     }
 
-    // Display multiple bingo cards side by side
     async function displayBingoCards() {
         if (!playerState.selectedCartelas.length) {
             bingoCardsContainer.innerHTML = '<div class="bingo-card-section" style="text-align:center; padding:40px;"><p>🎯 Select cartelas to see your BINGO cards</p></div>';
@@ -816,13 +807,11 @@
             drawnSet.add("FREE");
             const { won, winningLines } = checkBingoWin(cartelaId, gameState.drawnNumbers);
             
-            // Card title
             const titleDiv = document.createElement('div');
             titleDiv.className = 'bingo-card-title';
             titleDiv.innerHTML = `<h3>🎯 Cartela #${cartelaId}</h3>`;
             cardDiv.appendChild(titleDiv);
             
-            // BINGO letters
             const lettersDiv = document.createElement('div');
             lettersDiv.className = 'bingo-header';
             ['B', 'I', 'N', 'G', 'O'].forEach(letter => {
@@ -833,7 +822,6 @@
             });
             cardDiv.appendChild(lettersDiv);
             
-            // BINGO grid
             const gridDiv = document.createElement('div');
             gridDiv.className = 'bingo-grid';
             
@@ -852,7 +840,6 @@
             }
             cardDiv.appendChild(gridDiv);
             
-            // Winning lines display
             if (won && winningLines.length) {
                 const linesDiv = document.createElement('div');
                 linesDiv.className = 'winning-lines-display';
@@ -980,6 +967,27 @@
         else showToast('Cannot deselect now', 'error');
     };
 
+    // ==================== MULTI-DEVICE STATE SYNC ====================
+    function syncPlayerState(data) {
+        if (data.balance !== undefined) {
+            playerState.balance = data.balance;
+            updateBalanceDisplay();
+        }
+        if (data.selectedCartelas !== undefined) {
+            playerState.selectedCartelas = data.selectedCartelas;
+            updateSelectedCount(playerState.selectedCartelas.length);
+            updateSelectedDisplay();
+            refreshCartelaHighlights();
+            if (gameState.status === 'active') {
+                displayBingoCards();
+            }
+        }
+        if (data.username !== undefined && data.username !== playerState.username) {
+            playerState.username = data.username;
+            showToast(`Username updated to ${playerState.username} on another device`, 'info');
+        }
+    }
+
     function updateGameDisplay() {
         document.getElementById('roundDisplay').innerHTML = `Round ${gameState.round}`;
         let statusEl = document.getElementById('statusDisplay');
@@ -1078,6 +1086,22 @@
         a.play().catch(e => {});
     }
 
+    function addCalledNumber(n) {
+        let cont = document.getElementById('calledNumbers');
+        if (!cont) return;
+        let ball = document.createElement('div');
+        ball.className = 'called-ball';
+        ball.textContent = `${getBingoLetter(n)}-${n}`;
+        cont.appendChild(ball);
+        cont.scrollTop = cont.scrollHeight;
+        while (cont.children.length > 20) cont.removeChild(cont.firstChild);
+    }
+
+    function updateSelectedCount(c) {
+        let el = document.getElementById('selectedCount');
+        if (el) el.textContent = `${c}/2`;
+    }
+
     // ==================== REGISTRATION ====================
     registerBtn.onclick = async () => {
         let phone = phoneInput.value.trim();
@@ -1102,6 +1126,7 @@
                     regScreen.style.display = 'none';
                     gameUI.style.display = 'block';
                     socket.emit('setPhone', { phone });
+                    deviceStatus.style.display = 'flex';
                     if (data.existingUser) {
                         showToast(`Welcome back ${playerState.username}! Balance: ${playerState.balance} ETB`, 'success');
                     } else {
@@ -1124,6 +1149,7 @@
         socket = io();
         
         socket.on('connect', () => {
+            console.log('Socket connected:', deviceId);
             if (registered && playerState.phone) {
                 socket.emit('setPhone', { phone: playerState.phone });
             }
@@ -1139,6 +1165,7 @@
                 regScreen.style.display = 'none';
                 gameUI.style.display = 'block';
                 socket.emit('setPhone', { phone: data.phone });
+                deviceStatus.style.display = 'flex';
                 showToast(`✅ Registration approved! You received ${data.balance} ETB welcome bonus!`, 'success');
             }
         });
@@ -1156,6 +1183,49 @@
                 refreshCartelaHighlights();
                 enableCartelaSelection(gameState.status === 'selection' && playerState.balance >= 10);
             }, 100);
+        });
+        
+        // MULTI-DEVICE SYNC EVENTS
+        socket.on('stateSync', (data) => {
+            console.log('State sync received:', data);
+            syncPlayerState(data);
+        });
+        
+        socket.on('selectionConfirmed', (data) => {
+            playerState.balance = data.balance;
+            if (!playerState.selectedCartelas.includes(data.cartela)) {
+                playerState.selectedCartelas = data.selectedCartelas;
+            }
+            updateBalanceDisplay();
+            updateSelectedCount(playerState.selectedCartelas.length);
+            showToast(`Cartela ${data.cartela} selected on another device`, 'info');
+            updateCartelaHighlight(data.cartela, true);
+            refreshCartelaHighlights();
+            if (gameState.status === 'active') {
+                displayBingoCards();
+            }
+        });
+        
+        socket.on('selectionUpdated', (data) => {
+            playerState.selectedCartelas = data.selectedCartelas;
+            playerState.balance = data.balance;
+            updateBalanceDisplay();
+            updateSelectedDisplay();
+            refreshCartelaHighlights();
+            if (gameState.status === 'active') {
+                displayBingoCards();
+            }
+        });
+        
+        socket.on('balanceUpdated', (data) => {
+            playerState.balance = data.balance;
+            updateBalanceDisplay();
+            showToast(`Balance updated on another device: ${data.balance} ETB`, 'info');
+        });
+        
+        socket.on('usernameChanged', (data) => {
+            playerState.username = data.username;
+            showToast(`Username changed to ${data.username} on another device`, 'info');
         });
         
         socket.on('gameState', (state) => {
@@ -1204,26 +1274,6 @@
             showToast(`📌 Cartela ${data.cartelaNumber} available!`, 'info');
             updateGlobalStats(data);
             markCartelaAsAvailable(data.cartelaNumber);
-        });
-        
-        socket.on('selectionConfirmed', (data) => {
-            playerState.balance = data.balance;
-            if (!playerState.selectedCartelas.includes(data.cartela)) playerState.selectedCartelas.push(data.cartela);
-            updateBalanceDisplay();
-            updateSelectedCount(playerState.selectedCartelas.length);
-            showToast(data.message, 'success');
-            updateCartelaHighlight(data.cartela, true);
-            loadCartelaGrid(data.cartela);
-            enableCartelaSelection(true);
-        });
-        
-        socket.on('selectionUpdated', (data) => {
-            playerState.selectedCartelas = data.selectedCartelas;
-            playerState.balance = data.balance;
-            updateBalanceDisplay();
-            updateSelectedDisplay();
-            refreshCartelaHighlights();
-            enableCartelaSelection(true);
         });
         
         socket.on('roundEnded', (data) => {
@@ -1318,22 +1368,6 @@
         setTimeout(() => {
             if (overlay && overlay.parentNode) overlay.remove();
         }, 5500);
-    }
-
-    function addCalledNumber(n) {
-        let cont = document.getElementById('calledNumbers');
-        if (!cont) return;
-        let ball = document.createElement('div');
-        ball.className = 'called-ball';
-        ball.textContent = `${getBingoLetter(n)}-${n}`;
-        cont.appendChild(ball);
-        cont.scrollTop = cont.scrollHeight;
-        while (cont.children.length > 20) cont.removeChild(cont.firstChild);
-    }
-
-    function updateSelectedCount(c) {
-        let el = document.getElementById('selectedCount');
-        if (el) el.textContent = `${c}/2`;
     }
 
     // ==================== BALANCE REQUEST ====================

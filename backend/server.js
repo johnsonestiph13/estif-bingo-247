@@ -65,6 +65,56 @@ function saveCartelaData() {
     try { fs.writeFileSync(CARTELA_DATA_FILE, JSON.stringify(cartelaData, null, 2)); } catch (err) { console.error("Save cartela error:", err); }
 }
 
+// ==================== MULTI-DEVICE SESSION MANAGEMENT ====================
+// Track all active sessions for each phone number
+let activeSessions = new Map(); // phone -> Set of socketIds
+let phoneToPlayerData = new Map(); // phone -> cached player data
+
+// Function to broadcast to all devices of a phone number
+function broadcastToUserDevices(phone, event, data, excludeSocketId = null) {
+    const sessions = activeSessions.get(phone);
+    if (!sessions) return;
+    
+    for (const socketId of sessions) {
+        if (socketId !== excludeSocketId) {
+            io.to(socketId).emit(event, data);
+        }
+    }
+}
+
+// Function to sync player state across all devices
+async function syncPlayerState(phone, socketId) {
+    const user = gameData.users.find(u => u.phone === phone);
+    if (!user) return;
+    
+    // Get current game selections for this player
+    let selectedCartelas = [];
+    let currentBalance = user.balance;
+    
+    for (const [sid, player] of gameState.players) {
+        if (player.phone === phone) {
+            selectedCartelas = player.selectedCartelas;
+            currentBalance = player.balance;
+            break;
+        }
+    }
+    
+    const playerData = {
+        balance: currentBalance,
+        selectedCartelas: selectedCartelas,
+        username: user.username,
+        phone: phone,
+        totalWon: user.totalWon || 0,
+        totalPlayed: user.totalPlayed || 0,
+        gamesWon: user.gamesWon || 0
+    };
+    
+    phoneToPlayerData.set(phone, playerData);
+    
+    // Broadcast to all devices of this user
+    broadcastToUserDevices(phone, 'stateSync', playerData);
+}
+
 // ==================== GAME CONSTANTS ====================
 const SELECTION_TIME = 50;
 const DRAW_INTERVAL = 4000;
@@ -201,7 +251,7 @@ function formatTime(sec) { return `${Math.floor(sec/60)}:${(sec%60).toString().p
 
 function broadcastGameState() {
     const playersList = Array.from(gameState.players.values()).map(p => ({
-        socketId: p.socketId, username: p.username, phone: p.phone,
+        socketId: p.socketId, username: p.username, phone: p.phone.slice(-6),
         selectedCount: p.selectedCartelas.length, selectedCartelas: p.selectedCartelas, balance: p.balance
     }));
     io.emit("gameState", {
@@ -368,7 +418,7 @@ function endRound(winnerSocketIds, winnerDetails = []) {
     // Broadcast to ALL players with full winner details
     io.emit("roundEnded", {
         winners: winnerNames,
-        winnerCartelas: winnerCartelas,  // Contains cartelaId and winningLines
+        winnerCartelas: winnerCartelas,
         winnerCount,
         winnerReward: perWinner,
         totalPool: gameState.totalBet,
@@ -607,6 +657,8 @@ app.post("/api/admin/add-balance", verifyAdminToken, (req, res) => {
     if (playerEntry) {
         playerEntry[1].balance = user.balance;
         io.to(playerEntry[0]).emit("balanceUpdated", { balance: user.balance, added: amount });
+        // Also broadcast to other devices
+        broadcastToUserDevices(phone, "balanceUpdated", { balance: user.balance, added: amount }, playerEntry[0]);
     }
     res.json({ success: true, newBalance: user.balance });
 });
@@ -630,13 +682,15 @@ app.post("/api/admin/remove-balance", verifyAdminToken, (req, res) => {
     if (playerEntry) {
         playerEntry[1].balance = user.balance;
         io.to(playerEntry[0]).emit("balanceUpdated", { balance: user.balance, removed: amount });
+        // Also broadcast to other devices
+        broadcastToUserDevices(phone, "balanceUpdated", { balance: user.balance, removed: amount }, playerEntry[0]);
     }
     res.json({ success: true, newBalance: user.balance });
 });
 
 app.get("/api/admin/players", verifyAdminToken, (req, res) => {
     const users = gameData.users.map(u => ({
-        phone: u.phone, username: u.username, balance: u.balance, totalManualAdded: u.totalManualAdded || 0, registeredAt: u.registeredAt
+        phone: u.phone.slice(-6), username: u.username, balance: u.balance, totalManualAdded: u.totalManualAdded || 0, registeredAt: u.registeredAt
     }));
     res.json({ success: true, players: users });
 });
@@ -719,7 +773,7 @@ app.get("/health", (req, res) => {
     res.json({ status: "OK", timestamp: new Date() });
 });
 
-// ==================== SOCKET.IO ====================
+// ==================== SOCKET.IO WITH MULTI-DEVICE SUPPORT ====================
 io.on("connection", (socket) => {
     console.log(`🟢 New socket connection: ${socket.id}`);
 
@@ -730,45 +784,91 @@ io.on("connection", (socket) => {
             socket.emit("error", { message: "Phone not approved yet. Wait for admin approval." });
             return;
         }
-        const playerData = {
-            socketId: socket.id,
-            phone: user.phone,
-            username: user.username,
-            selectedCartelas: [],
-            balance: user.balance,
-            totalWon: 0,
-            totalPlayed: 0,
-            gamesWon: 0,
-            joinedAt: Date.now()
-        };
-        gameState.players.set(socket.id, playerData);
+        
+        // Add this socket to active sessions for this phone
+        if (!activeSessions.has(phone)) {
+            activeSessions.set(phone, new Set());
+        }
+        activeSessions.get(phone).add(socket.id);
+        
+        // Check if player already exists in gameState
+        let existingPlayer = null;
+        for (const [sid, p] of gameState.players) {
+            if (p.phone === phone) {
+                existingPlayer = p;
+                break;
+            }
+        }
+        
+        let playerData;
+        
+        if (existingPlayer) {
+            // Use existing player data
+            playerData = {
+                socketId: socket.id,
+                phone: existingPlayer.phone,
+                username: existingPlayer.username,
+                selectedCartelas: existingPlayer.selectedCartelas,
+                balance: existingPlayer.balance,
+                totalWon: existingPlayer.totalWon,
+                totalPlayed: existingPlayer.totalPlayed,
+                gamesWon: existingPlayer.gamesWon,
+                joinedAt: Date.now()
+            };
+            gameState.players.set(socket.id, playerData);
+        } else {
+            // Create new player instance
+            playerData = {
+                socketId: socket.id,
+                phone: user.phone,
+                username: user.username,
+                selectedCartelas: [],
+                balance: user.balance,
+                totalWon: 0,
+                totalPlayed: 0,
+                gamesWon: 0,
+                joinedAt: Date.now()
+            };
+            gameState.players.set(socket.id, playerData);
+        }
+        
         user.lastSeen = new Date().toISOString();
         saveData();
-
+        
+        // Send current state to this device
         socket.emit("registered", {
             socketId: socket.id,
             username: user.username,
-            phone: user.phone,
-            balance: user.balance,
+            phone: user.phone.slice(-6),
+            balance: playerData.balance,
             welcomeBonus: 0,
             gameState: {
                 status: gameState.status, round: gameState.round, timer: gameState.timer,
                 drawnNumbers: gameState.drawnNumbers, winPercentage: gameState.winPercentage
             }
         });
+        
         socket.emit("gameState", {
             status: gameState.status, round: gameState.round, timer: gameState.timer,
             drawnNumbers: gameState.drawnNumbers, playersCount: gameState.players.size,
             winPercentage: gameState.winPercentage
         });
+        
         socket.emit("timerUpdate", { seconds: gameState.timer, round: gameState.round, formatted: formatTime(gameState.timer) });
-
+        
         const { totalBetAmount, winnerReward, totalCartelas } = calculateRewardPool();
         socket.emit("rewardPoolUpdate", {
             totalSelectedCartelas: totalCartelas, totalBetAmount, winnerReward,
             winPercentage: gameState.winPercentage, remainingCartelas: TOTAL_CARTELAS - totalCartelas
         });
-
+        
+        // Send player's current selections
+        socket.emit("playerData", {
+            selectedCartelas: playerData.selectedCartelas,
+            balance: playerData.balance,
+            username: playerData.username
+        });
+        
         io.emit("playersUpdate", {
             count: gameState.players.size,
             players: Array.from(gameState.players.values()).map(p => ({
@@ -777,6 +877,9 @@ io.on("connection", (socket) => {
                 balance: p.balance
             }))
         });
+        
+        // Sync state to other devices of this user
+        syncPlayerState(phone, socket.id);
     });
 
     socket.on("setUsername", (data) => {
@@ -788,6 +891,8 @@ io.on("connection", (socket) => {
             saveData();
             socket.emit("usernameChanged", { username: player.username });
             broadcastGameState();
+            // Sync to other devices
+            broadcastToUserDevices(player.phone, "usernameChanged", { username: player.username }, socket.id);
         }
     });
 
@@ -813,11 +918,19 @@ io.on("connection", (socket) => {
         gameData.transactions.push({ userId: player.phone, username: player.username, type: "bet", amount: BET_AMOUNT, cartela: data.cartelaNumber, round: gameState.round, timestamp: new Date().toISOString() });
         saveData();
 
-        socket.emit("selectionConfirmed", {
-            cartela: data.cartelaNumber, selectedCount: player.selectedCartelas.length,
-            selectedCartelas: player.selectedCartelas, balance: player.balance,
+        const selectionData = {
+            cartela: data.cartelaNumber,
+            selectedCount: player.selectedCartelas.length,
+            selectedCartelas: player.selectedCartelas,
+            balance: player.balance,
             remainingSlots: MAX_CARTELAS - player.selectedCartelas.length
-        });
+        };
+        
+        socket.emit("selectionConfirmed", selectionData);
+        
+        // Broadcast to other devices of same user
+        broadcastToUserDevices(player.phone, "selectionConfirmed", selectionData, socket.id);
+        
         broadcastRewardPool();
         io.emit("cartelaTaken", {
             cartelaNumber: data.cartelaNumber, takenBy: player.username,
@@ -847,7 +960,13 @@ io.on("connection", (socket) => {
             const user = gameData.users.find(u => u.phone === player.phone);
             if (user) user.balance = player.balance;
             saveData();
-            socket.emit("selectionUpdated", { selectedCartelas: player.selectedCartelas, balance: player.balance });
+            
+            const updateData = { selectedCartelas: player.selectedCartelas, balance: player.balance };
+            socket.emit("selectionUpdated", updateData);
+            
+            // Broadcast to other devices of same user
+            broadcastToUserDevices(player.phone, "selectionUpdated", updateData, socket.id);
+            
             broadcastRewardPool();
             io.emit("cartelaReleased", {
                 cartelaNumber: data.cartelaNumber, releasedBy: player.username,
@@ -877,9 +996,38 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         console.log(`🔴 Player disconnected: ${socket.id}`);
-        for (const [cnum, cart] of globalTakenCartelas) if (cart.playerId === socket.id) globalTakenCartelas.delete(cnum);
-        globalTotalSelectedCartelas = globalTakenCartelas.size;
-        gameState.players.delete(socket.id);
+        
+        // Find which phone this socket belonged to
+        let phoneToRemove = null;
+        for (const [phone, sessions] of activeSessions) {
+            if (sessions.has(socket.id)) {
+                sessions.delete(socket.id);
+                if (sessions.size === 0) {
+                    phoneToRemove = phone;
+                }
+                break;
+            }
+        }
+        
+        if (phoneToRemove) {
+            activeSessions.delete(phoneToRemove);
+        }
+        
+        // Remove from gameState players
+        const player = gameState.players.get(socket.id);
+        if (player) {
+            // Check if this player has other active sessions
+            const hasOtherSessions = activeSessions.has(player.phone);
+            if (!hasOtherSessions) {
+                // Only remove from gameState if no other devices are connected
+                for (const [cnum, cart] of globalTakenCartelas) {
+                    if (cart.playerId === socket.id) globalTakenCartelas.delete(cnum);
+                }
+                globalTotalSelectedCartelas = globalTakenCartelas.size;
+                gameState.players.delete(socket.id);
+            }
+        }
+        
         broadcastRewardPool();
         io.emit("playersUpdate", {
             count: gameState.players.size,
@@ -899,11 +1047,19 @@ startSelectionTimer();
 server.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════════════════╗
-║              🎲 ESTIF BINGO 24/7 - GLOBAL EDITION 🎲                      ║
+║              🎲 ESTIF BINGO 24/7 - MULTI-DEVICE EDITION 🎲                ║
+║                                                                           ║
 ║     📱 Player: https://estif-bingo-247.onrender.com/player.html           ║
 ║     🔐 Admin:  https://estif-bingo-247.onrender.com/admin.html            ║
+║                                                                           ║
 ║     👤 Admin Email: johnsonestiph13@gmail.com                             ║
 ║     🔑 Admin Password: Jon@2127                                           ║
+║                                                                           ║
+║     ✅ Multi-Device Support: Same phone on multiple devices               ║
+║     ✅ Real-time sync across all devices                                  ║
+║     ✅ Balance updates instantly on all devices                           ║
+║     ✅ Cartela selection sync across devices                              ║
+║                                                                           ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
     `);
 });
@@ -915,4 +1071,4 @@ process.on("SIGTERM", () => {
     server.close(() => process.exit(0));
 });
 
-module.exports = { app, server, io, gameState, globalTakenCartelas, globalTotalSelectedCartelas };
+module.exports = { app, server, io, gameState, globalTakenCartelas, globalTotalSelectedCartelas, activeSessions };
