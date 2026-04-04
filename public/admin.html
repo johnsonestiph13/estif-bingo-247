@@ -65,6 +65,11 @@
         .transaction-add { color: #4caf50; }
         .transaction-remove { color: #f44336; }
         
+        /* Winner Display Enhancement */
+        .winner-detail { font-size: 12px; color: #ffaa33; margin-top: 4px; }
+        .winner-cartela-badge { background: #ff9800; color: #1a472a; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-right: 5px; }
+        .winner-pattern-badge { background: #4caf50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; display: inline-block; }
+        
         /* Modal */
         .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: #0f3e2a; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; }
@@ -148,7 +153,7 @@
                     <thead>
                         <tr><th>Phone</th><th>Username</th><th>Balance (ETB)</th><th>Total Added</th><th>Registered</th><th>Actions</th></tr>
                     </thead>
-                    <tbody id="playersTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
+                    <tbody id="playersTableBody"><tr><td colspan="6">Loading...</tr></table>
                 </table>
             </div>
         </div>
@@ -193,7 +198,7 @@
                 <h3>📨 Pending Balance Requests</h3>
                 <table id="requestsTable">
                     <thead><tr><th>Player</th><th>Amount</th><th>Message</th><th>Date</th><th>Actions</th></tr></thead>
-                    <tbody id="requestsTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+                    <tbody id="requestsTableBody"><tr><td colspan="5">Loading...</tr></tr>
                 </table>
             </div>
         </div>
@@ -204,7 +209,7 @@
                 <h3>📝 Pending Phone Registrations</h3>
                 <table id="regTable">
                     <thead><tr><th>Phone</th><th>Requested At</th><th>Actions</th></tr></thead>
-                    <tbody id="regTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+                    <tbody id="regTableBody"><tr><td colspan="3">Loading...</tr></tr>
                 </table>
             </div>
         </div>
@@ -232,8 +237,20 @@
             <div class="table-container">
                 <h3>💰 Commission Per Round</h3>
                 <table id="commissionTable">
-                    <thead><tr><th>Round</th><th>Date</th><th>Total Pool</th><th>Winner Reward</th><th>Commission</th><th>Commission %</th><th>Winners</th></tr></thead>
-                    <tbody id="commissionTableBody"><tr><td colspan="7">Select a report and click Generate</td></tr></tbody>
+                    <thead>
+                        <tr>
+                            <th>Round</th>
+                            <th>Date</th>
+                            <th>Total Pool</th>
+                            <th>Winner Reward</th>
+                            <th>Commission</th>
+                            <th>Commission %</th>
+                            <th>Winner(s)</th>
+                            <th>Winner Cartela(s)</th>
+                            <th>Winning Pattern(s)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="commissionTableBody"><tr><td colspan="9">Select a report and click Generate</tr></table>
                 </table>
             </div>
         </div>
@@ -312,6 +329,22 @@
         socket.on('newBalanceRequest', () => { if (document.getElementById('requestsTab').classList.contains('active')) loadBalanceRequests(); showToast('New balance request!', 'info'); });
         socket.on('newPendingRegistration', () => { if (document.getElementById('registrationsTab').classList.contains('active')) loadPendingRegistrations(); showToast('New registration request!', 'info'); });
         socket.on('balanceUpdated', () => { refreshData(); if (currentSearchPlayer) searchPlayer(); });
+        // Enhanced: Listen for round ended with winner details
+        socket.on('roundEnded', (data) => {
+            refreshData();
+            if (data.winnerCartelas && data.winnerCartelas.length > 0) {
+                let winnerMsg = '🎉 WINNERS:\n';
+                data.winnerCartelas.forEach(w => {
+                    winnerMsg += `\n🏆 ${w.username}\n   📍 Cartela #${w.cartelaId}\n   🎯 Pattern: ${w.winningLines.join(', ')}\n`;
+                });
+                console.log(winnerMsg);
+                showToast(`🎉 Winners: ${data.winners.join(', ')} - Each wins ${data.winnerReward.toFixed(2)} ETB`, 'success');
+            } else if (data.winners && data.winners.length > 0) {
+                showToast(`🎉 Winners: ${data.winners.join(', ')} - Each wins ${data.winnerReward.toFixed(2)} ETB`, 'success');
+            } else {
+                showToast('No winners this round!', 'info');
+            }
+        });
     }
 
     // ==================== DATA REFRESH ====================
@@ -627,9 +660,11 @@
                 <div class="stat-card"><div class="stat-value">${report.totalCommission || 0}</div><div>Total Commission</div></div>
             `;
         }
+        
+        // Enhanced: Display winner cartelas and patterns in commission table
         const commissionData = type === 'commission' ? report.commissionByRound : (report.commissionPerRound || []);
         const tbody = document.getElementById('commissionTableBody');
-        if (!commissionData.length) { tbody.innerHTML = '<tr><td colspan="7">No data available</td></tr>'; return; }
+        if (!commissionData.length) { tbody.innerHTML = '<tr><td colspan="9">No data available</td></tr>'; return; }
         tbody.innerHTML = '';
         commissionData.forEach(c => {
             const row = tbody.insertRow();
@@ -639,7 +674,23 @@
             row.insertCell(3).textContent = (c.winnerReward || 0).toFixed(2);
             row.insertCell(4).textContent = (c.adminCommission || 0).toFixed(2);
             row.insertCell(5).textContent = c.commissionPercentage + '%';
-            row.insertCell(6).textContent = c.winners ? (Array.isArray(c.winners) ? c.winners.join(', ') : c.winners) : '-';
+            
+            // Enhanced winner display with cartela numbers and patterns
+            let winnersHtml = '-';
+            let cartelasHtml = '-';
+            let patternsHtml = '-';
+            
+            if (c.winnerCartelas && c.winnerCartelas.length > 0) {
+                winnersHtml = c.winnerCartelas.map(w => w.username).join(', ');
+                cartelasHtml = c.winnerCartelas.map(w => `<span class="winner-cartela-badge">#${w.cartelaId}</span>`).join(' ');
+                patternsHtml = c.winnerCartelas.map(w => `<span class="winner-pattern-badge">${w.winningLines.join(', ')}</span>`).join(' ');
+            } else if (c.winners && c.winners.length > 0) {
+                winnersHtml = Array.isArray(c.winners) ? c.winners.join(', ') : c.winners;
+            }
+            
+            row.insertCell(6).innerHTML = winnersHtml;
+            row.insertCell(7).innerHTML = cartelasHtml;
+            row.insertCell(8).innerHTML = patternsHtml;
         });
     }
 

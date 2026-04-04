@@ -288,44 +288,98 @@ function startActiveGame() {
     }, DRAW_INTERVAL);
 }
 
+// ==================== ENHANCED END ROUND FUNCTION ====================
 function endRound(winnerSocketIds, winnerDetails = []) {
     if (gameState.status !== "active") return;
     stopGame();
     gameState.status = "ended";
     gameState.winners = winnerSocketIds;
     gameState.roundEndTime = new Date();
+    
     const winnerCount = winnerSocketIds.length;
     const perWinner = winnerCount ? gameState.winnerReward / winnerCount : 0;
-    const winnerNames = [], winnerCartelas = [];
+    const winnerNames = [];
+    const winnerCartelas = [];
+    
     for (let i = 0; i < winnerSocketIds.length; i++) {
         const sid = winnerSocketIds[i];
         const pl = gameState.players.get(sid);
         const det = winnerDetails.find(d => d.socketId === sid);
+        
         if (pl) {
             pl.balance += perWinner;
             pl.totalWon = (pl.totalWon || 0) + perWinner;
             pl.gamesWon = (pl.gamesWon || 0) + 1;
             winnerNames.push(pl.username);
-            if (det) winnerCartelas.push({ username: pl.username, cartelaId: det.cartelaId, winningLines: det.winningLines });
-            io.to(sid).emit("youWon", { amount: perWinner, cartelaId: det?.cartelaId, winningLines: det?.winningLines, newBalance: pl.balance, message: `🎉 You won ${perWinner.toFixed(2)} ETB!` });
-            gameData.transactions.push({ userId: pl.phone, username: pl.username, type: "win", amount: perWinner, round: gameState.round, timestamp: new Date().toISOString() });
+            
+            if (det) {
+                winnerCartelas.push({
+                    username: pl.username,
+                    cartelaId: det.cartelaId,
+                    winningLines: det.winningLines
+                });
+            }
+            
+            io.to(sid).emit("youWon", {
+                amount: perWinner,
+                cartelaId: det?.cartelaId,
+                winningLines: det?.winningLines,
+                newBalance: pl.balance,
+                message: `🎉 Congratulations! You won ${perWinner.toFixed(2)} ETB!`
+            });
+            
+            gameData.transactions.push({
+                userId: pl.phone,
+                username: pl.username,
+                type: "win",
+                amount: perWinner,
+                round: gameState.round,
+                timestamp: new Date().toISOString()
+            });
         }
     }
-    for (const [_, pl] of gameState.players) if (pl.selectedCartelas.length) pl.totalPlayed = (pl.totalPlayed || 0) + 1;
+    
+    // Update total played
+    for (const [_, pl] of gameState.players) {
+        if (pl.selectedCartelas.length) {
+            pl.totalPlayed = (pl.totalPlayed || 0) + 1;
+        }
+    }
+    
+    // Save round to history
     gameData.gameRounds.push({
-        roundId: gameState.round, totalPlayers: Array.from(gameState.players.values()).filter(p => p.selectedCartelas.length > 0).length,
-        totalCartelas: globalTotalSelectedCartelas, totalPool: gameState.totalBet, winnerReward: gameState.winnerReward,
-        adminCommission: gameState.adminCommission, winners: winnerNames, winnerCartelas, winnerCount, perWinnerReward: perWinner,
-        winPercentage: gameState.winPercentage, timestamp: new Date().toISOString()
+        roundId: gameState.round,
+        totalPlayers: Array.from(gameState.players.values()).filter(p => p.selectedCartelas.length > 0).length,
+        totalCartelas: globalTotalSelectedCartelas,
+        totalPool: gameState.totalBet,
+        winnerReward: gameState.winnerReward,
+        adminCommission: gameState.adminCommission,
+        winners: winnerNames,
+        winnerCartelas: winnerCartelas,
+        winnerCount,
+        perWinnerReward: perWinner,
+        winPercentage: gameState.winPercentage,
+        timestamp: new Date().toISOString()
     });
+    
     if (gameData.gameRounds.length > 1000) gameData.gameRounds = gameData.gameRounds.slice(-1000);
     saveData();
+    
+    // Broadcast to ALL players with full winner details
     io.emit("roundEnded", {
-        winners: winnerNames, winnerCartelas, winnerCount, winnerReward: perWinner,
-        totalPool: gameState.totalBet, adminCommission: gameState.adminCommission,
-        winPercentage: gameState.winPercentage, round: gameState.round,
-        message: winnerCount ? `🎉 BINGO! Winners: ${winnerNames.join(", ")}. Each wins ${perWinner.toFixed(2)} ETB!` : "No winners this round!"
+        winners: winnerNames,
+        winnerCartelas: winnerCartelas,  // Contains cartelaId and winningLines
+        winnerCount,
+        winnerReward: perWinner,
+        totalPool: gameState.totalBet,
+        adminCommission: gameState.adminCommission,
+        winPercentage: gameState.winPercentage,
+        round: gameState.round,
+        message: winnerCount > 0 
+            ? `🎉 BINGO! Winners: ${winnerNames.join(", ")}. Each wins ${perWinner.toFixed(2)} ETB!`
+            : "No winners this round! Better luck next time!"
     });
+    
     broadcastGameState();
     scheduleNextRound();
 }
@@ -607,6 +661,58 @@ app.get("/api/reports/daily", verifyAdminToken, (req, res) => {
     const rounds = gameData.gameRounds.filter(r => r.timestamp?.startsWith(date));
     res.json({ success: true, report: { date, totalGames: rounds.length, totalBet: rounds.reduce((s, r) => s + (r.totalPool || 0), 0), totalWon: rounds.reduce((s, r) => s + (r.winnerReward || 0), 0), totalCommission: rounds.reduce((s, r) => s + (r.adminCommission || 0), 0) } });
 });
+
+app.get("/api/reports/weekly", verifyAdminToken, (req, res) => {
+    const { year, week } = req.query;
+    const targetYear = parseInt(year) || new Date().getFullYear();
+    const targetWeek = parseInt(week) || getWeekNumber(new Date());
+    const rounds = gameData.gameRounds.filter(r => {
+        if (!r.timestamp) return false;
+        const d = new Date(r.timestamp);
+        return getWeekNumber(d) === targetWeek && d.getFullYear() === targetYear;
+    });
+    res.json({ success: true, report: { year: targetYear, week: targetWeek, totalGames: rounds.length, totalBet: rounds.reduce((s, r) => s + (r.totalPool || 0), 0), totalWon: rounds.reduce((s, r) => s + (r.winnerReward || 0), 0), totalCommission: rounds.reduce((s, r) => s + (r.adminCommission || 0), 0) } });
+});
+
+app.get("/api/reports/monthly", verifyAdminToken, (req, res) => {
+    const { year, month } = req.query;
+    const targetYear = parseInt(year) || new Date().getFullYear();
+    const targetMonth = parseInt(month) || new Date().getMonth() + 1;
+    const rounds = gameData.gameRounds.filter(r => {
+        if (!r.timestamp) return false;
+        const d = new Date(r.timestamp);
+        return d.getFullYear() === targetYear && (d.getMonth() + 1) === targetMonth;
+    });
+    res.json({ success: true, report: { year: targetYear, month: targetMonth, totalGames: rounds.length, totalBet: rounds.reduce((s, r) => s + (r.totalPool || 0), 0), totalWon: rounds.reduce((s, r) => s + (r.winnerReward || 0), 0), totalCommission: rounds.reduce((s, r) => s + (r.adminCommission || 0), 0) } });
+});
+
+app.get("/api/reports/range", verifyAdminToken, (req, res) => {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) return res.status(400).json({ success: false, message: "startDate and endDate required" });
+    const rounds = gameData.gameRounds.filter(r => {
+        if (!r.timestamp) return false;
+        const date = r.timestamp.split("T")[0];
+        return date >= startDate && date <= endDate;
+    });
+    res.json({ success: true, report: { startDate, endDate, totalGames: rounds.length, totalBet: rounds.reduce((s, r) => s + (r.totalPool || 0), 0), totalWon: rounds.reduce((s, r) => s + (r.winnerReward || 0), 0), totalCommission: rounds.reduce((s, r) => s + (r.adminCommission || 0), 0) } });
+});
+
+app.get("/api/reports/commission", verifyAdminToken, (req, res) => {
+    const totalCommission = gameData.gameRounds.reduce((sum, r) => sum + (r.adminCommission || 0), 0);
+    const commissionByRound = [...gameData.gameRounds].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map(r => ({
+        roundId: r.roundId, date: r.timestamp, totalPool: r.totalPool || 0,
+        adminCommission: r.adminCommission || 0, percentage: r.totalPool ? ((r.adminCommission / r.totalPool) * 100).toFixed(2) : "0"
+    }));
+    res.json({ success: true, totalCommission, commissionByRound });
+});
+
+function getWeekNumber(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
 
 // ==================== HEALTH CHECK ====================
 app.get("/health", (req, res) => {
