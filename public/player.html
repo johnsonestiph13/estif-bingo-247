@@ -21,7 +21,7 @@
         }
 
         .container {
-            max-width: 600px;
+            max-width: 700px;
             margin: 0 auto;
         }
 
@@ -167,7 +167,7 @@
             animation: popIn 0.2s;
         }
 
-        /* Cartela Section */
+        /* Cartela Selection Grid */
         .cartela-section {
             background: rgba(15, 62, 42, 0.95);
             backdrop-filter: blur(12px);
@@ -239,13 +239,36 @@
             pointer-events: none;
         }
 
-        /* Bingo Card */
+        /* Multiple Bingo Cards Container - SIDE BY SIDE */
+        .bingo-cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
         .bingo-card-section {
             background: rgba(15, 62, 42, 0.95);
             backdrop-filter: blur(12px);
             border-radius: 24px;
             padding: 20px;
-            margin-bottom: 20px;
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .bingo-card-title {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .bingo-card-title h3 {
+            color: #f5c542;
+            font-size: 18px;
+            background: rgba(0,0,0,0.3);
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 30px;
         }
 
         .bingo-header {
@@ -257,10 +280,10 @@
         }
 
         .bingo-letter {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             padding: 8px;
-            border-radius: 12px;
+            border-radius: 10px;
         }
 
         .bingo-letter.B { background: #ff6b6b; }
@@ -272,20 +295,20 @@
         .bingo-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 6px;
+            gap: 5px;
             background: #2a5a3e;
             padding: 12px;
-            border-radius: 20px;
+            border-radius: 16px;
         }
 
         .bingo-cell {
             background: #2d1b4e;
             color: #b9f6ca;
             text-align: center;
-            padding: 12px 4px;
-            border-radius: 12px;
+            padding: 10px 3px;
+            border-radius: 10px;
             font-weight: bold;
-            font-size: 15px;
+            font-size: 13px;
             transition: all 0.15s;
         }
 
@@ -298,6 +321,7 @@
 
         .bingo-cell.free {
             background: #ffe66d;
+            color: #1a472a;
         }
 
         .bingo-cell.winning-line {
@@ -306,7 +330,14 @@
             animation: pulse 0.6s infinite;
         }
 
-        /* Selected Cartelas */
+        .winning-lines-display {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 11px;
+            color: #f5c542;
+        }
+
+        /* Selected Cartelas List */
         .selected-cartelas-list {
             display: flex;
             gap: 14px;
@@ -397,7 +428,7 @@
             font-weight: bold;
         }
 
-        /* Winner Overlay - Enhanced */
+        /* Winner Overlay */
         .winner-overlay {
             position: fixed;
             top: 0;
@@ -524,14 +555,8 @@
         }
 
         @keyframes glowPulse {
-            0%, 100% {
-                border-color: #f5c542;
-                box-shadow: 0 0 5px rgba(245, 197, 66, 0.3);
-            }
-            50% {
-                border-color: #ff9800;
-                box-shadow: 0 0 15px rgba(245, 197, 66, 0.6);
-            }
+            0%, 100% { border-color: #f5c542; box-shadow: 0 0 5px rgba(245, 197, 66, 0.3); }
+            50% { border-color: #ff9800; box-shadow: 0 0 15px rgba(245, 197, 66, 0.6); }
         }
 
         @keyframes pulse {
@@ -540,14 +565,8 @@
         }
 
         @keyframes popIn {
-            from {
-                transform: scale(0);
-                opacity: 0;
-            }
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
         @keyframes fadeIn {
@@ -556,17 +575,10 @@
         }
 
         @keyframes slideUp {
-            from {
-                transform: translateY(40px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -581,48 +593,17 @@
             border-radius: 10px;
         }
 
-        /* Responsive */
         @media (max-width: 600px) {
-            body {
-                padding: 12px;
-            }
-
-            .cartela-grid {
-                grid-template-columns: repeat(6, 1fr);
-            }
-
-            .cartela-item {
-                font-size: 11px;
-                padding: 8px 3px;
-            }
-
-            .timer {
-                font-size: 40px;
-            }
-
-            .called-ball {
-                width: 36px;
-                height: 36px;
-                font-size: 14px;
-            }
-
-            .bingo-cell {
-                padding: 8px 3px;
-                font-size: 12px;
-            }
-
-            .stats-container {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .winner-title {
-                font-size: 24px;
-            }
-
-            .winner-cartela {
-                font-size: 18px;
-            }
+            body { padding: 12px; }
+            .cartela-grid { grid-template-columns: repeat(6, 1fr); }
+            .cartela-item { font-size: 11px; padding: 8px 3px; }
+            .timer { font-size: 40px; }
+            .called-ball { width: 36px; height: 36px; font-size: 14px; }
+            .bingo-cell { padding: 6px 2px; font-size: 11px; }
+            .bingo-letter { font-size: 14px; }
+            .stats-container { width: 100%; justify-content: space-between; }
+            .bingo-cards-container { flex-direction: column; align-items: center; }
+            .bingo-card-section { min-width: 100%; }
         }
     </style>
 </head>
@@ -691,23 +672,10 @@
             <button class="btn-watch" onclick="enableWatchOnlyMode()">Continue Watching</button>
         </div>
 
-        <!-- Bingo Card -->
-        <div class="bingo-card-section" id="bingoCardSection" style="display: none;">
-            <div class="section-title">
-                <h3 id="bingoCardTitle">🎯 Your BINGO Card</h3>
-            </div>
-            <div class="bingo-header">
-                <div class="bingo-letter B">B</div>
-                <div class="bingo-letter I">I</div>
-                <div class="bingo-letter N">N</div>
-                <div class="bingo-letter G">G</div>
-                <div class="bingo-letter O">O</div>
-            </div>
-            <div class="bingo-grid" id="bingoGrid"></div>
-            <div id="winningLinesDisplay" style="margin-top: 10px; text-align: center; font-size: 13px; color: #f5c542;"></div>
-        </div>
+        <!-- Bingo Cards Container - SIDE BY SIDE for multiple cartelas -->
+        <div id="bingoCardsContainer" class="bingo-cards-container"></div>
 
-        <!-- Selected Cartelas -->
+        <!-- Selected Cartelas (during active game) -->
         <div class="cartela-section" id="selectedSection" style="display: none;">
             <div class="section-title">
                 <h3>🎯 YOUR SELECTED CARTELAS</h3>
@@ -729,7 +697,6 @@
     let gameState = { status: 'selection', round: 0, timer: 50, drawnNumbers: [], winPercentage: 75 };
     let playerState = { balance: 0, selectedCartelas: [], username: '', phone: '' };
     let cartelaElements = [];
-    let currentViewingCartela = null;
     let cartelaGrids = {};
     let isWatchOnly = false;
     let gameActive = false;
@@ -739,12 +706,13 @@
     const TOTAL_CARTELAS = 400;
     const BET_AMOUNT = 10;
 
-    // ==================== DOM ELEMENTS ====================
+    // DOM elements
     const regScreen = document.getElementById('registrationScreen');
     const gameUI = document.getElementById('gameUI');
     const phoneInput = document.getElementById('phoneInput');
     const registerBtn = document.getElementById('registerBtn');
     const regMessage = document.getElementById('regMessage');
+    const bingoCardsContainer = document.getElementById('bingoCardsContainer');
 
     // ==================== HELPER FUNCTIONS ====================
     const getBingoLetter = (n) => n <= 15 ? "B" : n <= 30 ? "I" : n <= 45 ? "N" : n <= 60 ? "G" : "O";
@@ -828,99 +796,72 @@
         return { won: lines.length > 0, winningLines: lines };
     }
 
-    async function displayBingoCard(cid) {
-        let grid = await loadCartelaGrid(cid);
-        if (!grid) return;
-        currentViewingCartela = cid;
-        document.getElementById('bingoCardTitle').innerHTML = `🎯 Cartela #${cid} BINGO Card`;
-        let container = document.getElementById('bingoGrid');
-        container.innerHTML = '';
-        let drawnSet = new Set(gameState.drawnNumbers);
-        drawnSet.add("FREE");
-        let { won, winningLines } = checkBingoWin(cid, gameState.drawnNumbers);
-        document.getElementById('winningLinesDisplay').innerHTML = won ? `🏆 BINGO! ${winningLines.join(', ')} 🏆` : '';
-        for (let r = 0; r < 5; r++) {
-            for (let c = 0; c < 5; c++) {
-                let cell = document.createElement('div');
-                cell.className = 'bingo-cell';
-                let val = grid[r][c];
-                let isMarked = drawnSet.has(val);
-                cell.textContent = val === "FREE" ? "⭐" : val;
-                if (val === "FREE") cell.classList.add('free');
-                if (isMarked) cell.classList.add('marked');
-                if (won && winningLines.length) cell.classList.add('winning-line');
-                container.appendChild(cell);
+    // Display multiple bingo cards side by side
+    async function displayBingoCards() {
+        if (!playerState.selectedCartelas.length) {
+            bingoCardsContainer.innerHTML = '<div class="bingo-card-section" style="text-align:center; padding:40px;"><p>🎯 Select cartelas to see your BINGO cards</p></div>';
+            return;
+        }
+        
+        bingoCardsContainer.innerHTML = '';
+        
+        for (const cartelaId of playerState.selectedCartelas) {
+            const grid = await loadCartelaGrid(cartelaId);
+            if (!grid) continue;
+            
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'bingo-card-section';
+            
+            const drawnSet = new Set(gameState.drawnNumbers);
+            drawnSet.add("FREE");
+            const { won, winningLines } = checkBingoWin(cartelaId, gameState.drawnNumbers);
+            
+            // Card title
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'bingo-card-title';
+            titleDiv.innerHTML = `<h3>🎯 Cartela #${cartelaId}</h3>`;
+            cardDiv.appendChild(titleDiv);
+            
+            // BINGO letters
+            const lettersDiv = document.createElement('div');
+            lettersDiv.className = 'bingo-header';
+            ['B', 'I', 'N', 'G', 'O'].forEach(letter => {
+                const letterSpan = document.createElement('div');
+                letterSpan.className = `bingo-letter ${letter}`;
+                letterSpan.textContent = letter;
+                lettersDiv.appendChild(letterSpan);
+            });
+            cardDiv.appendChild(lettersDiv);
+            
+            // BINGO grid
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'bingo-grid';
+            
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'bingo-cell';
+                    const val = grid[row][col];
+                    const isMarked = drawnSet.has(val);
+                    cell.textContent = val === "FREE" ? "⭐" : val;
+                    if (val === "FREE") cell.classList.add('free');
+                    if (isMarked) cell.classList.add('marked');
+                    if (won) cell.classList.add('winning-line');
+                    gridDiv.appendChild(cell);
+                }
             }
+            cardDiv.appendChild(gridDiv);
+            
+            // Winning lines display
+            if (won && winningLines.length) {
+                const linesDiv = document.createElement('div');
+                linesDiv.className = 'winning-lines-display';
+                linesDiv.innerHTML = `🏆 ${winningLines.join(', ')} 🏆`;
+                cardDiv.appendChild(linesDiv);
+            }
+            
+            bingoCardsContainer.appendChild(cardDiv);
         }
-        document.getElementById('bingoCardSection').style.display = 'block';
-        if (won && !isWatchOnly && gameActive) {
-            showSelfWinnerOverlay(cid, winningLines);
-            playWinSound();
-        }
-    }
-
-    function showSelfWinnerOverlay(cid, lines) {
-        let overlay = document.createElement('div');
-        overlay.className = 'winner-overlay';
-        overlay.innerHTML = `
-            <div class="winner-card">
-                <div class="winner-title">🎉 BINGO! 🎉</div>
-                <div class="winner-cartela">🔒 Winning Cartela: ${cid}</div>
-                <div class="winner-line">🏆 ${lines.join(', ')} 🏆</div>
-                <div class="winner-reward">💰 You won ${gameState.winnerReward?.toFixed(2) || 0} ETB!</div>
-                <div class="next-round-info">⏳ Next round in 6 seconds...</div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        setTimeout(() => overlay.remove(), 6000);
-    }
-
-    // Enhanced Winner Announcement for ALL winners
-    function showWinnerAnnouncement(data) {
-        const overlay = document.createElement('div');
-        overlay.className = 'winner-overlay';
-        
-        let winnersHtml = '';
-        if (data.winnerCartelas && data.winnerCartelas.length > 0) {
-            winnersHtml = '<div class="winner-list">';
-            data.winnerCartelas.forEach(winner => {
-                const patterns = winner.winningLines ? winner.winningLines.join(', ') : 'BINGO!';
-                winnersHtml += `
-                    <div class="winner-item">
-                        <div class="winner-name">🏆 ${winner.username}</div>
-                        <div class="winner-cartela">🎯 Cartela #${winner.cartelaId}</div>
-                        <div class="winner-pattern">✨ Winning Pattern: <span>${patterns}</span></div>
-                    </div>
-                `;
-            });
-            winnersHtml += '</div>';
-        } else if (data.winners && data.winners.length > 0) {
-            winnersHtml = '<div class="winner-list">';
-            data.winners.forEach(winner => {
-                winnersHtml += `<div class="winner-item"><div class="winner-name">🏆 ${winner}</div></div>`;
-            });
-            winnersHtml += '</div>';
-        } else {
-            winnersHtml = '<div class="winner-item">No winners this round!</div>';
-        }
-        
-        const isPlayerWinner = data.winners && data.winners.includes(playerState.username);
-        const rewardText = isPlayerWinner ? `You won ${data.winnerReward.toFixed(2)} ETB!` : `Each winner wins ${data.winnerReward.toFixed(2)} ETB!`;
-        
-        overlay.innerHTML = `
-            <div class="winner-card">
-                <div class="winner-title">🎉 BINGO! 🎉</div>
-                <div class="winner-reward">💰 ${rewardText}</div>
-                <div class="winner-reward" style="font-size: 16px;">📊 Total Pool: ${data.totalPool.toFixed(2)} ETB</div>
-                ${winnersHtml}
-                <div class="next-round-info">⏳ Next round starts in 6 seconds...</div>
-            </div>
-        `;
-        
-        document.body.appendChild(overlay);
-        setTimeout(() => {
-            if (overlay && overlay.parentNode) overlay.remove();
-        }, 5500);
     }
 
     function enableCartelaSelection(enable) {
@@ -1030,7 +971,8 @@
 
     window.viewCartelaCard = async (c) => {
         await loadCartelaGrid(c);
-        await displayBingoCard(c);
+        playerState.selectedCartelas = [c];
+        await displayBingoCards();
     };
     
     window.deselectCartela = (num) => {
@@ -1050,6 +992,7 @@
             statusEl.className = `status-badge ${gameState.status}`;
         }
         updateTimerDisplay(gameState.timer);
+        
         let calledDiv = document.getElementById('calledNumbers');
         if (calledDiv) {
             calledDiv.innerHTML = '';
@@ -1060,9 +1003,9 @@
                 calledDiv.appendChild(ball);
             });
         }
+        
         let cartelaSec = document.getElementById('cartelaSection');
         let selectedSec = document.getElementById('selectedSection');
-        let bingoSec = document.getElementById('bingoCardSection');
         let watchSec = document.getElementById('watchOnlySection');
         
         if (gameState.status === 'selection') {
@@ -1070,27 +1013,26 @@
                 if (cartelaSec) cartelaSec.style.display = 'none';
                 if (selectedSec) selectedSec.style.display = 'none';
                 if (watchSec) watchSec.style.display = 'block';
-                if (bingoSec) bingoSec.style.display = 'none';
+                if (bingoCardsContainer) bingoCardsContainer.style.display = 'none';
             } else {
                 if (cartelaSec) cartelaSec.style.display = 'block';
                 if (selectedSec) selectedSec.style.display = 'none';
                 if (watchSec) watchSec.style.display = 'none';
-                if (bingoSec) bingoSec.style.display = 'none';
+                if (bingoCardsContainer) bingoCardsContainer.style.display = 'none';
                 enableCartelaSelection(true);
             }
         } else if (gameState.status === 'active') {
             if (cartelaSec) cartelaSec.style.display = 'none';
             if (watchSec) watchSec.style.display = 'none';
             if (selectedSec) selectedSec.style.display = (!isWatchOnly && playerState.selectedCartelas.length) ? 'block' : 'none';
-            if (bingoSec) bingoSec.style.display = 'block';
-            if (!isWatchOnly && playerState.selectedCartelas.length && !currentViewingCartela) viewCartelaCard(playerState.selectedCartelas[0]);
-            else if (isWatchOnly && !currentViewingCartela) viewCartelaCard(1);
+            if (bingoCardsContainer) bingoCardsContainer.style.display = 'flex';
+            displayBingoCards();
             enableCartelaSelection(false);
         } else {
             if (cartelaSec) cartelaSec.style.display = 'block';
             if (selectedSec) selectedSec.style.display = 'none';
             if (watchSec) watchSec.style.display = 'none';
-            if (bingoSec) bingoSec.style.display = 'none';
+            if (bingoCardsContainer) bingoCardsContainer.style.display = 'none';
             enableCartelaSelection(false);
         }
     }
@@ -1223,7 +1165,6 @@
             updateRewardPoolDisplay(state);
             if (state.status === 'selection' && !isWatchOnly && playerState.balance >= 10) enableCartelaSelection(true);
             else if (state.status !== 'selection') enableCartelaSelection(false);
-            if (currentViewingCartela) displayBingoCard(currentViewingCartela);
         });
         
         socket.on('timerUpdate', (data) => {
@@ -1237,14 +1178,15 @@
             updateGameDisplay();
             updateRewardPoolDisplay(data);
             showToast(`Game started! Prize Pool: ${data.winnerReward} ETB`, 'success');
-            showCartelaSelection(false);
             enableCartelaSelection(false);
         });
         
         socket.on('numberDrawn', async (data) => {
             addCalledNumber(data.number);
             playSound(data.number);
-            if (currentViewingCartela) await displayBingoCard(currentViewingCartela);
+            if (gameState.status === 'active') {
+                await displayBingoCards();
+            }
         });
         
         socket.on('rewardPoolUpdate', (data) => {
@@ -1284,17 +1226,13 @@
             enableCartelaSelection(true);
         });
         
-        // ENHANCED: Show winner cartelas and patterns
         socket.on('roundEnded', (data) => {
             gameState.status = 'ended';
             gameActive = false;
             updateGameDisplay();
             enableCartelaSelection(false);
-            
-            // Show enhanced winner announcement with cartela numbers and patterns
             showWinnerAnnouncement(data);
             playWinSound();
-            
             playerState.selectedCartelas = [];
             updateSelectedDisplay();
             refreshCartelaHighlights();
@@ -1311,11 +1249,9 @@
             gameState = { ...gameState, round: data.round, timer: data.timer, status: 'selection', drawnNumbers: [] };
             gameActive = false;
             updateGameDisplay();
-            showCartelaSelection(true);
             showToast(data.message, 'info');
             document.getElementById('calledNumbers').innerHTML = '';
-            document.getElementById('bingoCardSection').style.display = 'none';
-            currentViewingCartela = null;
+            bingoCardsContainer.innerHTML = '';
             isWatchOnly = false;
             setTimeout(() => {
                 if (playerState.balance >= 10) enableCartelaSelection(true);
@@ -1337,6 +1273,53 @@
         socket.on('error', (msg) => showToast(msg, 'error'));
     }
 
+    function showWinnerAnnouncement(data) {
+        const overlay = document.createElement('div');
+        overlay.className = 'winner-overlay';
+        
+        let winnersHtml = '';
+        if (data.winnerCartelas && data.winnerCartelas.length > 0) {
+            winnersHtml = '<div class="winner-list">';
+            data.winnerCartelas.forEach(winner => {
+                const patterns = winner.winningLines ? winner.winningLines.join(', ') : 'BINGO!';
+                winnersHtml += `
+                    <div class="winner-item">
+                        <div class="winner-name">🏆 ${winner.username}</div>
+                        <div class="winner-cartela">🎯 Cartela #${winner.cartelaId}</div>
+                        <div class="winner-pattern">✨ Pattern: <span>${patterns}</span></div>
+                    </div>
+                `;
+            });
+            winnersHtml += '</div>';
+        } else if (data.winners && data.winners.length > 0) {
+            winnersHtml = '<div class="winner-list">';
+            data.winners.forEach(winner => {
+                winnersHtml += `<div class="winner-item"><div class="winner-name">🏆 ${winner}</div></div>`;
+            });
+            winnersHtml += '</div>';
+        } else {
+            winnersHtml = '<div class="winner-item">No winners this round!</div>';
+        }
+        
+        const isPlayerWinner = data.winners && data.winners.includes(playerState.username);
+        const rewardText = isPlayerWinner ? `You won ${data.winnerReward.toFixed(2)} ETB!` : `Each winner wins ${data.winnerReward.toFixed(2)} ETB!`;
+        
+        overlay.innerHTML = `
+            <div class="winner-card">
+                <div class="winner-title">🎉 BINGO! 🎉</div>
+                <div class="winner-reward">💰 ${rewardText}</div>
+                <div class="winner-reward" style="font-size: 16px;">📊 Total Pool: ${data.totalPool.toFixed(2)} ETB</div>
+                ${winnersHtml}
+                <div class="next-round-info">⏳ Next round starts in 6 seconds...</div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        setTimeout(() => {
+            if (overlay && overlay.parentNode) overlay.remove();
+        }, 5500);
+    }
+
     function addCalledNumber(n) {
         let cont = document.getElementById('calledNumbers');
         if (!cont) return;
@@ -1351,14 +1334,6 @@
     function updateSelectedCount(c) {
         let el = document.getElementById('selectedCount');
         if (el) el.textContent = `${c}/2`;
-    }
-
-    function showCartelaSelection(show) {
-        let cs = document.getElementById('cartelaSection');
-        let ss = document.getElementById('selectedSection');
-        if (cs) cs.style.display = show ? 'block' : 'none';
-        if (ss) ss.style.display = show ? 'none' : 'block';
-        if (!show && !isWatchOnly && playerState.selectedCartelas.length) updateSelectedDisplay();
     }
 
     // ==================== BALANCE REQUEST ====================
