@@ -13,7 +13,7 @@ const { body, validationResult } = require("express-validator");
 require("dotenv").config();
 
 // ==================== ENVIRONMENT VALIDATION ====================
-const requiredEnv = ["DATABASE_URL", "JWT_SECRET", "ADMIN_EMAIL", "ADMIN_PASSWORD_HASH", "TELEGRAM_BOT_TOKEN"];
+const requiredEnv = ["DATABASE_URL", "JWT_SECRET", "ADMIN_EMAIL", "ADMIN_PASSWORD_HASH", "BOT_API_URL"];
 for (const env of requiredEnv) {
     if (!process.env[env]) {
         console.error(`❌ Missing required environment variable: ${env}`);
@@ -36,7 +36,6 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// FIXED: Correct path for your folder structure (backend/server.js -> public/)
 app.use(express.static(path.join(__dirname, "../../public")));
 app.use(compression());
 
@@ -54,28 +53,8 @@ const authLimiter = rateLimit({
     skipSuccessfulRequests: true
 });
 
-// ==================== TELEGRAM BOT SETUP ====================
-const TelegramBot = require("node-telegram-bot-api");
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-const otpSecrets = new Map();
-
-bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "🎯 Welcome to Estif Bingo!\n\nSend /bingo to get your login code.");
-});
-
-bot.onText(/\/bingo/, async (msg) => {
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpSecrets.set(userId, {
-        otp: otp,
-        expires: Date.now() + 5 * 60 * 1000
-    });
-    bot.sendMessage(chatId, `🔐 Your Bingo login code: *${otp}*\n\nThis code expires in 5 minutes.`, {
-        parse_mode: "Markdown"
-    });
-});
+// ==================== BOT API URL (Python Bot) ====================
+const BOT_API_URL = process.env.BOT_API_URL;
 
 // ==================== POSTGRESQL DATABASE ====================
 const pool = new Pool({
@@ -688,20 +667,38 @@ function verifyAdminToken(req, res, next) {
     next();
 }
 
-// ==================== TELEGRAM OTP AUTHENTICATION ====================
+// ==================== TELEGRAM OTP AUTHENTICATION (via Python Bot API) ====================
 app.post("/api/player/send-otp", authLimiter, [
     body("phone").isMobilePhone().withMessage("Invalid phone number"),
     body("telegramUserId").isInt().withMessage("Valid Telegram user ID required")
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    
     const { phone, telegramUserId } = req.body;
+    
+    // Check if user already exists
     const existing = await getUser(phone);
     if (existing) {
         await linkTelegramUser(telegramUserId, phone);
-        return res.json({ success: true, message: "Already registered. Please verify OTP." });
+        return res.json({ success: true, message: "Already registered. Please send /bingo to our Telegram bot to get your OTP code." });
     }
+    
+    // Save pending login request
     await savePendingLogin(phone, telegramUserId);
+    
+    // Call Python bot API to prepare OTP (optional - bot already handles /bingo)
+    try {
+        await fetch(`${BOT_API_URL}/api/request-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, telegramUserId })
+        });
+    } catch (error) {
+        console.error("Error notifying bot API:", error);
+        // Don't fail the request - user can still send /bingo manually
+    }
+    
     res.json({ success: true, message: "Please send /bingo to our Telegram bot to receive your OTP code." });
 });
 
@@ -712,23 +709,46 @@ app.post("/api/player/verify-otp", authLimiter, [
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    
     const { phone, otp, telegramUserId } = req.body;
-    const secret = otpSecrets.get(telegramUserId);
-    if (!secret || secret.otp !== otp || Date.now() > secret.expires) {
-        return res.status(401).json({ success: false, message: "Invalid or expired OTP" });
+    
+    // Call Python bot API to verify OTP
+    try {
+        const response = await fetch(`${BOT_API_URL}/api/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telegramUserId, otp })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            return res.status(401).json({ success: false, message: data.message });
+        }
+        
+        // Link Telegram ID to phone
+        await linkTelegramUser(telegramUserId, phone);
+        
+        // Check if user exists
+        const user = await getUser(phone);
+        if (user) {
+            return res.json({ success: true, approved: true, balance: user.balance, username: user.username });
+        }
+        
+        // Check pending registration
+        const pending = await getPendingRegistrations();
+        if (pending.find(p => p.phone === phone)) {
+            return res.json({ success: true, approved: false, message: "Registration pending admin approval" });
+        }
+        
+        // Create pending registration
+        await savePendingRegistration(phone, null);
+        res.json({ success: true, approved: false, message: "Registration request sent to admin" });
+        
+    } catch (error) {
+        console.error("Error calling bot API:", error);
+        res.status(500).json({ success: false, message: "Verification service unavailable. Please try again." });
     }
-    otpSecrets.delete(telegramUserId);
-    await linkTelegramUser(telegramUserId, phone);
-    const user = await getUser(phone);
-    if (user) {
-        return res.json({ success: true, approved: true, balance: user.balance, username: user.username });
-    }
-    const pending = await getPendingRegistrations();
-    if (pending.find(p => p.phone === phone)) {
-        return res.json({ success: true, approved: false, message: "Registration pending admin approval" });
-    }
-    await savePendingRegistration(phone, null);
-    res.json({ success: true, approved: false, message: "Registration request sent to admin" });
 });
 
 // ==================== PHONE REGISTRATION & ADMIN APPROVAL ====================
@@ -1190,9 +1210,11 @@ server.listen(PORT, () => {
 ║     📱 Player: https://estif-bingo-247.onrender.com/player.html           ║
 ║     🔐 Admin:  https://estif-bingo-247.onrender.com/admin.html            ║
 ║     ✅ Persistent game state (crash recovery)                             ║
-║     ✅ Telegram OTP authentication                                        ║
+║     ✅ Telegram OTP authentication (via Python bot)                       ║
 ║     ✅ Rate limiting & input validation                                   ║
 ║     ✅ Graceful shutdown                                                  ║
+║                                                                           ║
+║     📡 Python Bot API: ${BOT_API_URL}                                     ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
     `);
 });
