@@ -1,28 +1,24 @@
 {
   "name": "estif-bingo-247",
   "version": "3.0.0",
-  "description": "24/7 Continuous Multiplayer Bingo Game",
+  "description": "24/7 Continuous Multiplayer Bingo Game with PostgreSQL and Telegram OTP",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js",
-    "init-db": "node backend/config/initDb.js",
-    "seed": "node backend/config/seedData.js"
+    "dev": "nodemon backend/server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.5.4",
-    "mysql2": "^3.6.5",
+    "pg": "^8.11.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.3.1",
     "cors": "^2.8.5",
     "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
     "express-validator": "^7.0.1",
     "compression": "^1.7.4",
-    "node-cron": "^3.0.3",
-    "uuid": "^9.0.1"
+    "node-telegram-bot-api": "^0.66.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

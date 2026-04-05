@@ -20,13 +20,13 @@
   "author": "Estif Bingo",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
     "compression": "^1.7.4",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "cors": "^2.8.5"
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "socket.io": "^4.7.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
